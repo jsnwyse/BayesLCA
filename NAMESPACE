@@ -1,0 +1,27 @@
+useDynLib(BayesLCA)
+
+import(e1071)
+import(coda)
+importFrom(MCMCpack, rdirichlet, ddirichlet)
+importFrom(fields, image.plot)
+importFrom(nlme, fdHess)
+importFrom(grDevices, devAskNewPage, heat.colors)
+importFrom(graphics, abline, axis, lines, matplot, mosaicplot, mtext, plot)
+importFrom(stats, dbeta, dbinom, density, rbeta, rmultinom, runif, sd, var, weighted.mean)
+
+
+exportPattern("Alzheimer", "blca", "blca.boot", "blca.em", "blca.em.sd", "blca.gibbs", "blca.vb", "data.blca", "MAP", "rlca", "unMAP", "Zscore")
+S3method(as.mcmc, blca.gibbs)
+S3method(print, blca)
+S3method(plot, blca)
+S3method(plot, blca.em)
+S3method(plot, blca.vb)
+S3method(plot, blca.boot)
+S3method(plot, blca.gibbs)
+S3method(print, summary.blca)
+S3method(summary, blca)
+S3method(summary, blca.em)
+S3method(summary, blca.vb)
+S3method(summary, blca.boot)
+S3method(summary, blca.gibbs)
+

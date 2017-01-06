@@ -1,0 +1,19 @@
+Package: BayesLCA
+Type: Package
+Title: Bayesian Latent Class Analysis
+Version: 1.7
+Date: 2015-04-10
+Depends: e1071, coda
+Authors@R: c( person( "Arthur", "White", email = "arwhite@tcd.ie", role = c( "aut", "cre" ), comment = "Previous email address: arthur.white@ucdconnect.ie" ), person( "Thomas Brendan", "Murphy", email = "brendan.murphy@ucd.ie", role = c( "aut", "ths" ) ) )
+Description: Bayesian Latent Class Analysis using several different
+        methods.
+License: GPL (>= 2)
+Imports: fields, nlme, MCMCpack
+Packaged: 2015-04-10 12:35:07 UTC; arthur
+Author: Arthur White [aut, cre] (Previous email address:
+    arthur.white@ucdconnect.ie),
+  Thomas Brendan Murphy [aut, ths]
+Maintainer: Arthur White <arwhite@tcd.ie>
+NeedsCompilation: no
+Repository: CRAN
+Date/Publication: 2015-04-10 14:41:32
