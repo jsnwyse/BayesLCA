@@ -1,5 +1,5 @@
 blca.em <-
-function(X,G,alpha=1, beta=1, delta=1, start.vals= c("single","across"), counts.n=NULL, iter=500, restarts=5, verbose=TRUE, sd=FALSE, se=sd, conv=1e-6, small=1e-100)
+function( X, G, alpha=1, beta=1, delta=1, start.vals= c("single","across"), counts.n=NULL, iter=500, restarts=5, verbose=TRUE, sd=FALSE, se=sd, conv=1e-6, small=1e-100)
 {
 	if(is.null(counts.n))
 	{

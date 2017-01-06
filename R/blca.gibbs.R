@@ -1,4 +1,4 @@
-
+# this is the Gibbs sampler and needs to be renamed
 
 blca.gibbs <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = NULL, iter = 5000, burn.in = 100, thin = 1, relabel = TRUE, verbose = TRUE, verbose.update = 1000 )
 {

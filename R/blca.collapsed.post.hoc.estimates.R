@@ -61,7 +61,7 @@ blca.collapsed.post.hoc.estimates <- function( x, variables, G )
 		classprob.estimate = numeric( G )
 		sd.classprob.estimate = numeric( G )
 		
-		w = .C(		"R_LCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES",					as.integer(X),
+		w = .C(		"BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES",					as.integer(X),
 					as.integer(N),														as.integer(M),
 					as.integer(num.categories),													as.double(hparam),
 					as.integer(G),														as.integer((iter-burn.in)/thin),

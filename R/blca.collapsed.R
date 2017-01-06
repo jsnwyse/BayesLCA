@@ -1,4 +1,4 @@
-blca.collapsed <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = NULL, iter = 6000, burn.in = 1000, thin = 1, fixed.G = FALSE, just.gibbs.updates = FALSE, post.hoc.est = TRUE, n.gibbs = nrow(X), prior.G = 1, G.max =  30, variable.selection = FALSE, prob.inc = .5, hprior.model = FALSE, relabel = TRUE, silent = TRUE )
+blca.collapsed <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = NULL, iter = 6000, burn.in = 1000, thin = 1, fixed.G = FALSE, just.gibbs.updates = FALSE, post.hoc.est = TRUE, n.gibbs = nrow(X), prior.G = 1, G.max =  30, variable.selection = FALSE, variable.pattern = NULL, prob.inc = .5, hprior.model = FALSE, relabel = TRUE, silent = TRUE )
 {
 
 	t1 <- proc.time()
@@ -49,9 +49,11 @@ blca.collapsed <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categorie
 	log.post <- numeric(iter)
 	prior.include <- numeric(stored)
 	
+	if( is.null(variable.pattern) ) var.pattern <- rep(1,M) else var.pattern <- variable.pattern
+	
 	hparam <- c( delta, beta )
 	
-	w <- .C(	"R_LCA_VS",																	as.integer(X),
+	w <- .C(	"BLCA_VS",																	as.integer(X),
 				as.integer(N),																as.integer(M),
 				as.integer(num.categories),													as.double(hparam),
 				as.integer(fixed.G),														as.integer(just.gibbs.updates),
@@ -62,7 +64,8 @@ blca.collapsed <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categorie
 				as.integer(prior.G),														as.integer(variable.selection),
 				variable.inclusion.indicator = as.integer(variable.inclusion.indicator),	as.double(prob.inc),
 				log.posterior = as.double(log.post),										as.integer(hprior.model),
-				prior.include = as.double(prior.include),									PACKAGE = "BayesLCA" )
+				prior.include = as.double(prior.include),									as.integer(var.pattern),
+				PACKAGE = "BayesLCA" )
 
 	
 
