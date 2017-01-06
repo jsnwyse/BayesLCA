@@ -1,0 +1,167 @@
+blca.collapsed <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = NULL, iter = 6000, burn.in = 1000, thin = 1, fixed.G = FALSE, just.gibbs.updates = FALSE, post.hoc.est = TRUE, n.gibbs = nrow(X), prior.G = 1, G.max =  30, variable.selection = FALSE, prob.inc = .5, hprior.model = FALSE, relabel = TRUE, silent = TRUE )
+{
+
+	t1 <- proc.time()
+
+	X <- as.matrix(X)
+
+	N <- nrow(X)
+	M <- ncol(X)
+	
+	#check that matrix is binary and/or n.categories is passed
+	if( is.null(num.categories) ){
+		if( !all( X[X>0]==1) ){
+			stop("\t A matrix other than binary must have non-null n.categories vector" )
+		} else {
+			#matrix is binary
+			num.categories <- rep( 2, M )
+		}
+	}
+	
+	t <- apply( X, 2, min )
+	if( sum(t) > 0 ) stop("\t please recode categories from 0,...,ncat  to use blca.collapsed")
+	t <- apply( X, 2, max )
+	if( sum( t + 1 - num.categories ) > 0 ) stop("\n number of categories in X exceeds num.categories please recode categories from 0, ..., ncat.")
+	
+	## safety checks ##
+	
+	if(length(num.categories)!= M){
+		stop("\t The length of n.categories must be the same as the number of records per observation.")
+	}	
+	
+	if( !fixed.G & G.max < G ){
+		stop("\t The maximum number of groups cannot be less than the initial number of groups.")
+	}
+	
+	if(iter < burn.in){
+		warning("\t The number of burn in iterations is greater than the number of iterations-- this will be automatically adjusted to the functions parameters.")
+		iter = iter + burn.in
+	}
+
+	if((iter-burn.in)%%thin != 0)
+		stop("\t Please thin by an amount that divides perfectly into iter - burn.in. ")
+
+	stored <- (iter - burn.in) / thin	
+
+	memberships <- numeric(stored*N)
+	variable.inclusion.indicator <- numeric(stored*M)
+	num.groups <- numeric(stored)
+	log.post <- numeric(iter)
+	prior.include <- numeric(stored)
+	
+	hparam <- c( delta, beta )
+	
+	w <- .C(	"R_LCA_VS",																	as.integer(X),
+				as.integer(N),																as.integer(M),
+				as.integer(num.categories),													as.double(hparam),
+				as.integer(fixed.G),														as.integer(just.gibbs.updates),
+				as.integer(G),																as.integer(G.max),
+				as.integer(iter),															as.integer(burn.in),
+				as.integer(thin),															as.integer(n.gibbs),
+				memberships = as.integer(memberships),										ngroups = as.integer(num.groups),
+				as.integer(prior.G),														as.integer(variable.selection),
+				variable.inclusion.indicator = as.integer(variable.inclusion.indicator),	as.double(prob.inc),
+				log.posterior = as.double(log.post),										as.integer(hprior.model),
+				prior.include = as.double(prior.include),									PACKAGE = "BayesLCA" )
+
+	
+
+	membership.mat <- matrix( w$memberships, nrow = stored, ncol=N, byrow=FALSE ) + 1
+	vindicator.mat <- matrix( w$variable.inclusion.indicator, nrow=stored, ncol=M, byrow=FALSE )
+	
+	
+	if(relabel) relabelled <- undo.label.switching( membership.mat, w$ngroups )
+	
+	x = list()
+	
+	x$call <- match.call()
+	
+	x$classprob <- NULL
+	x$classprob.sd <- NULL
+	x$itemprob <- NULL
+	x$itemprob.sd <- NULL
+	
+	x$X <- X #this is needed for the post-hoc parameter step
+	x$num.categories <- num.categories
+	
+	x$samples <- list()
+	
+	x$samples$logpost <- w$log.posterior
+	x$samples$Giter <- w$ngroups
+	if(hprior.model) x$samples$prob.inc <- w$prior.include
+	
+	x$samples$var.ind <- vindicator.mat
+	if(!is.null(colnames(X))) colnames(x$samples$var.ind) <- colnames(X)
+	
+	if(relabel)
+	{
+		x$labelstore <- relabelled$relab
+		x$labelstore.permutation <- relabelled$permutation
+		x$G.Z <- relabelled$components
+		x$Z <- relabelled$label.prob
+	}
+	
+	#inputs
+	
+	x$iter <- iter
+	x$burn.in <- burn.in
+	x$thin <- thin
+	x$fixed.G <- fixed.G
+	x$just.gibbs.updates <- just.gibbs.updates
+	x$n.gibbs <- n.gibbs
+	x$prior.G <- prior.G
+	x$G.max <- G.max
+	x$variable.selection <- variable.selection
+	x$prob.inc <- prob.inc
+	x$hprior.model <- hprior.model
+	x$relabel <- relabel
+	x$prior <- list( alpha=alpha, beta=beta, delta=delta, prob.inc=prob.inc )
+	
+	t2 = proc.time()
+	
+	ttime = t2-t1
+  
+  	x$time = ttime[3]
+	
+	if(!silent) cat("\nTotal time taken (approx): ",ttime[3]," seconds")
+	
+	class(x)<-c("blca.collapsed", "blca")
+	#if(relabel && matchClasses(t(Z)%*%Z1, method="exact", verbose=FALSE)) warning("Label-switching (provisionally) corrected for - proceed with caution")
+	#if(relabel && label.swap) warning("Label-switching (provisionally) corrected for - diagnostic plots are recommended. Use '?plot.blca' for details.")
+	#if(!relabel && label.swap) warning("Label-switching may have occurred - diagnostic plots are recommended. Use '?plot.blca' for details.")
+	
+	if(post.hoc.est == TRUE) {
+	  if(variable.selection == TRUE){
+	    Gstar <- sort(unique(x$sample$Giter), decreasing = FALSE)[which.max(table(x$sample$Giter))]
+	    Mstar <- which(colMeans(x$sample$var.ind)>0.5)
+	    ph.est <- blca.collapsed.post.hoc.estimates(x, Mstar, Gstar)
+	    
+	  } else{
+	    Gstar <- sort(unique(x$sample$Giter), decreasing = FALSE)[which.max(table(x$sample$Giter))]
+	    ph.est <- blca.collapsed.post.hoc.estimates(x, 1:M, Gstar)
+	  }
+	  x$classprob <- ph.est$classprob
+	  x$classprob.sd <- ph.est$classprob.sd
+	  x$itemprob <- sapply(ph.est$itemprob, function(t1) t1[, 2])
+	  x$itemprob.sd <- sapply(ph.est$itemprob.sd, function(t1) t1[, 2])
+	  
+	  if(variable.selection == FALSE) Mstar = 1:M
+
+	  ## Name item probabilities, else could be confusing
+	  if(is.matrix(x$itemprob)){
+	    if(is.null(colnames(X))) {
+	      colnames( x$itemprob)<- paste("Col", Mstar)
+	      } else{
+	        colnames( x$itemprob)<- colnames(X)[Mstar]
+	        } ## else is.null(colnames(X))
+	    } else{
+	      if(is.null(colnames(X))){
+	        names(x$itemprob)<- paste("Col", Mstar)
+	        } else{
+	          names( x$itemprob)<- colnames(X)[Mstar]
+	          } ## else is.null(colnames(X))
+	      } ## else is.matrix(x$itemprob)
+	} ## if post.hoc.est
+	return(x)
+	
+}

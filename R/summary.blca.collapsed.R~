@@ -1,0 +1,11 @@
+summary.blca.gibbs <-
+function(object, ...){
+	sum1<- c( object$iter, object$burn.in, object$thin, mean(object$samples$logpost), object$fixed.G, object$variable.selection)
+	names(sum1)<- c("IterNumber", "Burn-in", "ThiningRate", "GSearch","VSelect" )
+	
+	object$method<- "Gibbs Sampling"
+	object$printnames<- c("Chain Lengths:", "Burn-In:", "Thinning Rate:","Latent class selection:", "Variable selection:")
+	object$sum1<- sum1
+
+	NextMethod("summary")
+	}
