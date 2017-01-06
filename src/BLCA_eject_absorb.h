@@ -17,9 +17,9 @@
 
 #include "BLCA_mixmod.h"
 
-int update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,int *proposed,double pr_ej_G,double pr_ej_Gp1) ;
+int BLCA_update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,int *proposed,double pr_ej_G,double pr_ej_Gp1) ;
 
-int update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int *proposed,double pr_ej_G,double pr_ej_Gm1) ;
+int BLCA_update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int *proposed,double pr_ej_G,double pr_ej_Gm1) ;
 
 
 #endif

@@ -62,6 +62,8 @@ struct mix_mod
 	
 	int *z; /*group memberhsip indicator*/
 	
+	double **s; /*group probability membership*/
+	
 	int *whereis; /*stores the index in components of a component*/
 
 	struct component **components; /*pointer to array of pointers to components*/
@@ -90,7 +92,11 @@ struct mix_mod
 	
 	double hprior_model_b0;
 	
+	double log_like;
+	
 	FILE *fp_log; /*file pointer for the debugger log*/
+	
+	int EM_fit ;
 
 };
 
@@ -101,22 +107,12 @@ struct mix_mod
 #include "BLCA_label_updates.h"
 #include "BLCA_eject_absorb.h"
 #include "BLCA_variable_selection.h"
+#include "BLCA_density.h"
+#include "BLCA_analysis.h"
 
 
-struct mix_mod *allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed) ;
+struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit) ;
 
-void free_mixmod(struct mix_mod *mixmod) ;
-
-double log_normalizing_constant_model(int G,struct mix_mod *mixmod) ;
-
-double l_prior_variable_include(int D,struct mix_mod *mixmod) ;
-
-double get_full_log_posterior(struct mix_mod *mixmod) ;
-
-double get_full_log_posterior_x2(struct mix_mod *mixmod) ;
-
-struct results *do_mixmod_analysis( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int fixedG, int onlyGibbs, int selectVariables, int *group_memberships, int *variable_inclusion_indicator, int *n_groups, double *log_joint_posterior, double *prior_include ) ;
-
-void do_mixmod_analysis_not_collapsed( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int *group_memberships, double *group_weights, double *variable_probabilities, double *log_joint_posterior ) ;
+void BLCA_free_mixmod(struct mix_mod *mixmod) ;
 
 #endif

@@ -14,7 +14,7 @@
 	
 #include "BLCA_utils.h"
 	
-double get_max(double *x,int len)
+double BLCA_get_max(double *x,int len)
 /*returns maximum of a vector x*/
 {
 	int i;
@@ -30,7 +30,7 @@ double get_max(double *x,int len)
 	return(max);
 }
 
-int get_imax(int *x,int len)
+int BLCA_get_imax(int *x,int len)
 /*returns maximum of a vector x*/
 {
 	int i;
@@ -46,7 +46,7 @@ int get_imax(int *x,int len)
 	return(max);
 }
 
-double get_min(double *x,int len)
+double BLCA_get_min(double *x,int len)
 /*returns maximum of a vector x*/
 {
 	int i;
@@ -62,7 +62,7 @@ double get_min(double *x,int len)
 	return(min);
 }
 
-int get_imin(int *x,int len)
+int BLCA_get_imin(int *x,int len)
 /*returns maximum of a vector x*/
 {
 	int i;
@@ -80,7 +80,7 @@ int get_imin(int *x,int len)
 
 
 
-int sample_discrete( double *weights, int len )
+int BLCA_sample_discrete( double *weights, int len )
 {
 	/*sample once from a multinomial distribution with weights*/
 	
@@ -100,20 +100,20 @@ int sample_discrete( double *weights, int len )
 	return(i);	
 }
 
-int random_integer( int n )
+int BLCA_random_integer( int n )
 {
 	//generate a random integer between 0 , ..., n-1
 	int i;
 	double *w =  calloc(n,sizeof(double));
 	for(i=0;i<n;i++) w[i] = 1.0/n ;
-	i = sample_discrete( w, n);
+	i = BLCA_sample_discrete( w, n);
 	free(w);
 	return(i);
 }
 
 
 /* a util to permute a vector  */
-void random_ranshuffle( int *a, int n )
+void BLCA_random_ranshuffle( int *a, int n )
 {
 	//randomly permute the first n elements of a using Fisher-Yates algorithm
 	//  using RNG from R
@@ -130,3 +130,38 @@ void random_ranshuffle( int *a, int n )
 	
 	return;
 }
+
+double BLCA_get_log_sum_exp( double *x, int len )
+{
+	//note that this function also modifies the x argument
+
+	int i;
+	double s=0., max=-DBL_MAX, *z;
+	
+	z = calloc( len, sizeof(double) );
+	
+	for( i=0; i<len; i++ )
+	{
+		if( x[i] > max ) max = x[i] ;
+		z[i] = x[i] ;
+	}
+
+	for( i=0; i<len; i++ )
+	{
+		z[i] -= max;
+		z[i] = exp( z[i] ) ;
+		s += z[i];
+	}
+	
+	for( i=0; i<len; i++ )
+	{
+		z[i] /= s ;
+		x[i] = z[i] ; 
+	}
+	
+	free(z);
+	
+	return( max + log(s) );
+}
+
+

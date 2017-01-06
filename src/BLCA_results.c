@@ -15,7 +15,7 @@
 #include "BLCA_results.h"
 
 
-void allocate_results(struct results *results,int iterations,int burn_in,int thin_by,int len,int d)
+void BLCA_allocate_results(struct results *results,int iterations,int burn_in,int thin_by,int len,int d)
 /*allocates space to store post burn-in iterations*/
 {
 	
@@ -44,7 +44,7 @@ void allocate_results(struct results *results,int iterations,int burn_in,int thi
 	return;
 }
 
-void free_results(struct results *results,int iterations,int burn_in,int thin_by )
+void BLCA_free_results(struct results *results,int iterations,int burn_in,int thin_by )
 {
 	int i,N = (iterations-burn_in)/thin_by;
 	
@@ -56,7 +56,7 @@ void free_results(struct results *results,int iterations,int burn_in,int thin_by
 	return; 
 }
 
-void allocate_results_x2(struct results *results,int iterations,int burn_in,int thin_by,int len,int d,int writeToFile)
+void BLCA_allocate_results_x2(struct results *results,int iterations,int burn_in,int thin_by,int len,int d,int writeToFile)
 /*allocates space to store post burn-in iterations*/
 {
 	
@@ -103,7 +103,7 @@ void allocate_results_x2(struct results *results,int iterations,int burn_in,int 
 	return;
 }
 
-void free_results_x2(struct results *results,int iterations,int burn_in,int thin_by,int writeToFile)
+void BLCA_free_results_x2(struct results *results,int iterations,int burn_in,int thin_by,int writeToFile)
 {
 	int i,N = (iterations-burn_in)/thin_by;
 	
@@ -154,7 +154,7 @@ int write_out_results(struct results *results,int N,int datasize,int datadimensi
 		/*count up frequencies of numbers of components*/
 		k = N;//results->niterations-results->nburnin; /*no. of elements in vector*/
 	
-		Gmax = get_imax(results->ngroups,k);
+		Gmax = BLCA_get_imax(results->ngroups,k);
 	
 		/*allocate a vector for counts*/
 		freqG = calloc(Gmax,sizeof(int));

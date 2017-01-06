@@ -17,19 +17,21 @@
 
 #include "BLCA_required_libs.h"
 
-double get_max(double *x,int len) ;
+double BLCA_get_max(double *x,int len) ;
 
-int get_imax(int *x,int len);
+int BLCA_get_imax(int *x,int len);
 
-double get_min(double *x,int len) ;
+double BLCA_get_min(double *x,int len) ;
 
-int get_imin(int *x,int len) ;
+int BLCA_get_imin(int *x,int len) ;
 
-int sample_discrete( double *weights, int len ) ;
+int BLCA_sample_discrete( double *weights, int len ) ;
 
-int random_integer( int n );
+int BLCA_random_integer( int n );
 
 /* a util to permute a vector  */
-void random_ranshuffle( int *a, int n ) ;
+void BLCA_random_ranshuffle( int *a, int n ) ;
+
+double BLCA_get_log_sum_exp( double *x, int len );
 
 #endif

@@ -11,17 +11,12 @@
 			mailto: wyseja@tcd.ie
 			
 	Last modification of this code: Mon 09 May 2016 15:38:03 IST   */
+	
+#ifndef __BLCA_VARIABLE_SELECTION_H__
+#define __BLCA_VARIABLE_SELECTION_H__
 
-#ifndef __BLCA_INITIALIZE_H__
-#define __BLCA_INITIALIZE_H__
-
-#include "BLCA_required_libs.h"
 #include "BLCA_mixmod.h"
 
-void BLCA_set_prior_on_number_of_components(struct mix_mod *mixmod,int type) ;
-
-int BLCA_initialize_simple(struct mix_mod *mixmod,int numgroups) ;
-
-void BLCA_initialize_EM( struct mix_mod *mixmod , double *group_weights, double *prob_variables) ;
+void BLCA_update_model_by_variable_include_exclude(struct mix_mod *mixmod,int *accepted,int *proposed,int var) ;
 
 #endif

@@ -16,7 +16,7 @@
 
 /*eject and absorb moves*/
 
-int update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,int *proposed,double pr_ej_G,double pr_ej_Gp1)
+int BLCA_update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,int *proposed,double pr_ej_G,double pr_ej_Gp1)
 /*this is the ejection move for one comonent ejecting another*/
 {
 
@@ -61,8 +61,8 @@ int update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,i
 	component_g1 =(struct component *)malloc(sizeof(struct component));
 	component_g2 =(struct component *)malloc(sizeof(struct component));
 	
-	allocate_component(component_g1,mixmod);
-	allocate_component(component_g2,mixmod);
+	BLCA_allocate_component(component_g1,mixmod);
+	BLCA_allocate_component(component_g2,mixmod);
 
 	component_g1->n_g = 0;
 	component_g2->n_g = 0;
@@ -89,7 +89,7 @@ int update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,i
 		
 				//printf("\nin there 2");
 		/*copy the contents of mixmod->components[ig1] into*/
-		copy_component(mixmod->components[ig1],component_g1,mixmod);	
+		BLCA_copy_component(mixmod->components[ig1],component_g1,mixmod);	
 		
 				//printf("\nin there 3");
 		
@@ -143,12 +143,12 @@ int update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,i
 	
 	}
 	
-	recompute_marginal_likelihood_component(component_g1,mixmod);
-	recompute_marginal_likelihood_component(component_g2,mixmod);	
+	BLCA_recompute_marginal_likelihood_component(component_g1,mixmod);
+	BLCA_recompute_marginal_likelihood_component(component_g2,mixmod);	
 	
 	/*compute the acceptance probability, remembering to add all necessary normalizing constants*/
 	
-	w = log_normalizing_constant_model(G+1,mixmod) - log_normalizing_constant_model(G,mixmod);
+	w = BLCA_log_normalizing_constant_model(G+1,mixmod) - BLCA_log_normalizing_constant_model(G,mixmod);
 	
 	//printf("\nBirth: w = %.10f ",w);
 
@@ -197,8 +197,8 @@ int update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,i
 		mixmod->whereis[G] = new_whereis;
 		mixmod->components[new_whereis]->in_use = TRUE;
 		
-		copy_component(component_g1,mixmod->components[ig1],mixmod);
-		copy_component(component_g2,mixmod->components[new_whereis],mixmod);
+		BLCA_copy_component(component_g1,mixmod->components[ig1],mixmod);
+		BLCA_copy_component(component_g2,mixmod->components[new_whereis],mixmod);
 		
 		/*now do a swap between component G and one of the others...*/
 		
@@ -243,8 +243,8 @@ int update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,i
 	/*for(k=0;k<mixmod->maxgroups;k++)
 		printf("\nComponent %d is in %d",k,mixmod->whereis[k]);*/
 	
-	free_component(component_g1,mixmod);
-	free_component(component_g2,mixmod);
+	BLCA_free_component(component_g1,mixmod);
+	BLCA_free_component(component_g2,mixmod);
 	
 	free(component_g1);
 	free(component_g2);
@@ -258,7 +258,7 @@ int update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accepted,i
 }
 
 
-int update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int *proposed,double pr_ej_G,double pr_ej_Gm1)
+int BLCA_update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int *proposed,double pr_ej_G,double pr_ej_Gm1)
 {
 	int i,ii,j,k,g1,g2,ig1,ig2,curr_n_g1,curr_n_g2,m,ntot,c=0,d = mixmod->d,identify_g1,identify_g2,id;
 	int *indexes,*order,*proposed_allocation,G = mixmod->G,n_g2;
@@ -304,7 +304,7 @@ int update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int
 	
 	component_g1 =(struct component *)malloc(sizeof(struct component));
 	
-	allocate_component(component_g1,mixmod);
+	BLCA_allocate_component(component_g1,mixmod);
 	
 	component_g1->n_g = 0;
 	
@@ -314,7 +314,7 @@ int update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int
 
 	n_g2 = mixmod->components[ig2]->n_g;
 
-	copy_component(mixmod->components[ig1],component_g1,mixmod);
+	BLCA_copy_component(mixmod->components[ig1],component_g1,mixmod);
 	
 	if(n_g2 > 0){
 	
@@ -347,13 +347,13 @@ int update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int
 	
 	}
 	
-	recompute_marginal_likelihood_component(component_g1,mixmod);	
+	BLCA_recompute_marginal_likelihood_component(component_g1,mixmod);	
 	
 	/*compute the acceptance probability, remembering to add all necessary normalizing constants*/
 	
 	/* w = log of difference in normalizing constants*/
 	
-	w = log_normalizing_constant_model(G-1,mixmod) - log_normalizing_constant_model(G,mixmod);
+	w = BLCA_log_normalizing_constant_model(G-1,mixmod) - BLCA_log_normalizing_constant_model(G,mixmod);
 	
 	//printf("\nDeath: w = %.10f ",w);
 	
@@ -397,7 +397,7 @@ int update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int
 			}
 		}
 		
-		copy_component(component_g1,mixmod->components[ig1],mixmod);
+		BLCA_copy_component(component_g1,mixmod->components[ig1],mixmod);
 		
 		mixmod->components[ig2]->in_use = FALSE;
 		//mixmod->whereis[g2] = -1;
@@ -427,7 +427,7 @@ int update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int
 		
 	}
 	
-	free_component(component_g1,mixmod);
+	BLCA_free_component(component_g1,mixmod);
 	free(component_g1);
 	
 		
