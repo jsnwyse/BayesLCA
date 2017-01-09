@@ -19,7 +19,7 @@ void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *fixed
 
 void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *n_sample, int *memberships, int *variable_inclusion_indicator, int *variable, double *estimate, double *sd_estimate, double *classprob_estimate, double *sd_classprob_estimate ) ; 
 
-void BLCA_NOT_COLLAPSED( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, double *log_joint_posterior );
+void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *verbose, int *verbose_update );
 
 void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol );
 

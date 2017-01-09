@@ -304,8 +304,6 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 			if( verbose && l == num_burnin-1 ) 
 				Rprintf("\nBurn-in completed...\n");
 				
-			if( verbose && (l+1-num_burnin)%verbose_update == 0 )
-				Rprintf("\n%d of %d samples completed....\n",l+1-num_burnin,num_iteration);
 		
 			itmod = ((l+1-num_burnin)/thin_by)-1;
 			
@@ -333,6 +331,9 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 			for(i=0;i<mixmod->G;i++) group_weights[itmod*mixmod->G + i] = mixmod->weights[i];
 			
 			log_joint_posterior[ itmod ] = BLCA_get_full_log_posterior_x2(mixmod);
+			
+			if( verbose && (l+1-num_burnin)%verbose_update == 0 )
+				Rprintf("\n%d of %d samples completed....\n",l+1-num_burnin,num_iteration);
 					
 		}	
 		
@@ -341,13 +342,14 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 	free(w);
 	for(i=0;i<mixmod->d;i++) free(v[i]);
 	free(v);
+	free(order);
 	
 	return;
 
 }
 
 
-void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iterations, double *membership_probabilities, double *group_weights, double *variable_probabilities, double *log_likelihood, int MAP, double tol ) 
+void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int iterations, double *membership_probabilities, double *group_weights, double *variable_probabilities, double *log_likelihood, int MAP, double tol ) 
 {
 	
 	int i, j, g, k, c, p, iter = 0 ;
