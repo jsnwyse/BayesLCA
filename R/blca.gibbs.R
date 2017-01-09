@@ -31,10 +31,10 @@ blca.gibbs <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = 
 		stop("\t The length of n.categories must be the same as the number of records per observation.")
 	}	
 
-	if(iter < burn.in){
-		warning("\t The number of burn in iterations is greater than the number of iterations-- this will be automatically adjusted to the functions parameters.")
-		iter = iter + burn.in
-	}
+	#if(iter < burn.in){
+	#	warning("\t The number of burn in iterations is greater than the number of iterations-- this will be automatically adjusted to the functions parameters.")
+	#	iter = iter + burn.in
+	#}
 
 	#if((iter-burn.in)%%thin != 0)
 	#	stop("\t Please thin by an amount that divides perfectly into iter - burn.in. ")
@@ -57,47 +57,49 @@ blca.gibbs <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = 
 				as.integer(burn.in),
 				as.integer(thin),															memberships = as.integer(memberships),					
 				weights = as.double(weights),											variable.probs = as.double(variable.probs),			
-				log.posterior = as.double(log.post),								as.integer(model.indicator), 
+				as.integer(model.indicator), 											log.posterior = as.double(log.post),
 				as.integer( verbose ),													as.integer( verbose.update ),			
 				PACKAGE = "BayesLCA" )
+	
+	if( verbose ) cat("\nFinished sampling...\n")
 
 	membership.mat <- matrix( w$memberships, nrow = stored, ncol=N, byrow=FALSE ) + 1
 	
 	#split these into a list as it will be easier to rearrange from label processing
 	var.probs.l <- list()
 	
-	k <- 1
-	for( i in 1:M )
+	l <- 1
+	for( j in 1:M )
 	{
-		if(i == 1){
+		if(j == 1){
 			gap <- 0
 		}else{
-			gap <- stored * G * sum( num.categories[1:(i-1)] )
+			gap <- stored * G * sum( num.categories[1:(j-1)] )
 		}
 		#variable probabilities stacked by group and then iteration
-		if( model.indicator[i] )
+		if( model.indicator[j] )
 		{
-			var.probs.l[[k]] <- matrix( w$variable.probs[(gap+1):(gap + stored*G*num.categories[i])] , nrow = stored * G, ncol=num.categories[i], byrow=TRUE )
-			k <- k+1
+			var.probs.l[[l]] <- matrix( w$variable.probs[(gap+1):(gap + stored*G*num.categories[j])] , nrow = stored * G, ncol=num.categories[j], byrow=TRUE )
+			l <- l+1
 		}
 	}	
 	
 	weights.mat <- matrix( w$weights , nrow=stored, ncol=G, byrow=TRUE )
 
-	if(relabel) relabelled <- undo.label.switching( membership.mat,rep(G, stored) )
+	if( relabel ) relabelled <- undo.label.switching( membership.mat,rep(G, stored) )
 	
 	#post processed weights and probabilities
 	
-	l <- 1
 	for( k in 1:stored )
 	{
 		weights.mat[ k, ] <- weights.mat[ k, relabelled$permutation[k,1:G] ]
+		l <- 1
 		for( j in 1:M  )
 		{
 			it <- (k-1)*G
 			if( model.indicator[j] )
 			{
-				var.probs.l[[l]][ it + 1:G , ] = var.probs.l[[j]][ it + relabelled$permutation[ k, 1:G ] , ]
+				var.probs.l[[l]][ it + 1:G , ] = var.probs.l[[l]][ it + relabelled$permutation[k,1:G] , ]
 				l <- l+1
 			}
 		}
@@ -141,6 +143,14 @@ blca.gibbs <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = 
 	
 	x$samples$logpost <- w$log.posterior
 	x$samples$Giter <- rep( G, stored )
+	
+	Dbar<- mean(w$log.posterior)
+	S2<- var(w$log.posterior)
+	
+	x$DIC<- 2*(2*Dbar - x$samples$logpost)
+	# need to check definition of BICM
+	#x$BICM<- 2*(Dbar - S2*(log(sum(counts.n))-1))
+	x$AICM<- 2*(Dbar - S2)
 	
 	if(relabel)
 	{

@@ -63,10 +63,10 @@ undo.label.switching <- function( Z, ngroups = NULL )
         
         labels.out.k <- numeric(nsamp.k*nobs)
         
-        w <- .C(		"Relabel",						as.integer(nobs),
-        				as.integer(nsamp.k),			as.integer(ngrp.k),
+        w <- .C(	"BLCA_RELABEL",						as.integer(nobs),
+        				as.integer(nsamp.k),					as.integer(ngrp.k),
         				as.integer(labels.arranged.k),	x=as.integer(labels.out.k),
-        			    xx = as.integer(permutation),	PACKAGE = "BayesLCA" )
+        			   xx = as.integer(permutation),		PACKAGE = "BayesLCA" )
         
         ret$ncomponents[j] = k
         ret$memberships[[j]] = matrix(w$x,nrow = nsamp.k,ncol=nobs,byrow=FALSE)
