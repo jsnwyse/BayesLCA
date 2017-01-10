@@ -1,59 +1,40 @@
 blca.em <-
-function( X, G, alpha=1, beta=1, delta=1, start.vals= c("single","across"), counts.n=NULL, iter=500, restarts=5, verbose=TRUE, sd=FALSE, se=sd, conv=1e-6, small=1e-100)
+function( X, G, alpha=1, beta=1, delta=1, num.categories=NULL, iter=500, restarts=5, verbose=TRUE, sd=FALSE, se=sd, conv=1e-6, small=1e-100, MAP=FALSE )
 {
-	if(is.null(counts.n))
-	{
-		if(inherits(X,"data.blca")){
-			counts.n<- X$counts.n
-			X<- X$data
-		}else{
-			Xdat<- data.blca(X)
-			X<- Xdat$data
-			counts.n<- Xdat$counts.n
-			}# else class(X)
-		} else{ 
-			X<- as.matrix(X)
-			if(any(X[X>0]!=1))
-			stop("If vector of counts is supplied separately, then data must be binary.")
-			}
+	
+	X <- as.matrix(X)
 
-	N<-nrow(X); M<-ncol(X) 
+	N<-nrow(X) 
+	M<-ncol(X) 
 	
-	if(length(delta)==1) delta<-rep(delta,G)
-	if(length(delta)!=G) stop("delta prior is wrong length (i.e., !=1 or G)")
+	#check that matrix is binary and/or n.categories is passed
+	if( is.null(num.categories) ){
+		if( !all( X[X>0]==1) ){
+			stop("\t A matrix other than binary must have non-null n.categories vector\n" )
+		} else {
+			#matrix is binary
+			num.categories <- rep( 2, M )
+		}
+	}
+
+	t <- apply( X, 2, min )
+	if( sum(t) > 0 ) stop("\t please recode categories from 0, ..., ncat-1  to use blca.em\n")
+	t <- apply( X, 2, max )
+	if( sum( t + 1 - num.categories ) > 0 ) stop("\n number of categories in X exceeds num.categories please recode categories from 0, ..., ncat-1\n")
+		
+
+	## safety checks ##
 	
-	if(!is.matrix(alpha)){
-			if(any(length(alpha)==c(1,G)) ){
-				alpha<-matrix(alpha,G,M)
-			} else {
-				if(length(alpha)==M){
-					alpha<- matrix(alpha,G,M, byrow=TRUE)
-				} else stop("Item probability prior improperly specified.")
-			}
-	} #else {
-	#	if(!is.matrix(alpha)) stop("Item probability prior improperly specified.")
-	#}	
+	if(length(num.categories)!= M){
+		stop("\t The length of num.categories must be the same as the number of records per observation\n")
+	}	
 	
-	if(!is.matrix(beta)){
-		if(any(length(beta)==c(1,G)) ){
-			beta<-matrix(beta,G,M)
-			} else {
-				if(length(beta)==M){
-					beta<- matrix(beta,G,M, byrow=TRUE)
-				} else stop("Item probability prior improperly specified.")
-			}
-		} #else {
-			#if(!is.matrix(beta)) stop("Item probability prior improperly specified.")
-	#}	
-	if(any(dim(alpha)!=c(G,M), dim(beta)!=c(G,M))) stop("Item probability prior improperly specified.")
+	if( length(alpha) > 1 ) stop("\t alpha value must be a positive scalar \n")
+	if( length(beta) > 1 ) stop("\t beta value must be a positive scalar \n")
+	if( length(delta) > 1 ) stop("\t delta value must be a positive scalar \n")
 
 	if(2^M <= (M+1)*G) warning(paste("Model may be improperly specified. Maximum number of classes that should be run is", floor(2^M/(M+1)), "."))
 	
-	N1<- sum(counts.n)
-	
-	conv<-N1*M*conv
-	eps<-N1*M
-		
 	counter<-0
 	llstore<-0
 	llcheck<- -Inf
@@ -67,109 +48,115 @@ function( X, G, alpha=1, beta=1, delta=1, start.vals= c("single","across"), coun
 
 	multistart.lp.store<- rep(0, restarts)
 	if(sd!=se) se<- sd
-	#Set Parameters
-	for(r in 1:restarts){
+	
+	#storage 
+	weights <- numeric(G)
+	variable.probs <- numeric(G*sum(num.categories))
+	group.probs <- numeric(N*G)
+	log.post <- numeric( iter )	
+	iters <- 0
+	converged <- 0
 
-	if(is.character(start.vals)){
-	  
-	  if(start.vals[1]=="single"){
-	    Z<-unMAP(sample(1:G,size=N,replace=TRUE))
-	    if(ncol(Z)<G) Z<-cbind(Z, matrix(0,nrow=N, ncol=(G-ncol(Z))))
-	  }else{
-	    if(start.vals[1]=="across"){
-	      Z<- matrix(runif(N*G), N,G)
-	      Z<- Z/rowSums(Z)
-	      } else stop("start.vals improperly specified. See help files for more details.")
-	    }
-	 } else{
-	      if(is.matrix(start.vals) & all(dim(as.matrix(start.vals)) == c(N,G)))  Z<- start.vals else{
-		  if(is.numeric(start.vals) & length(as.numeric(start.vals))==N){ 
-		    Z<- unMAP(start.vals)
-		    } else stop("start.vals improperly specified. See help files for more details.")
-		 }
-	  }	
+	model.indicator <- rep(1,M) #modify this later to allow for flexible model specification
 
-	while(abs(eps)>conv || counter< 20)
+	hparam <- c( delta, beta )
+	
+	log.post.max <- -Inf
+	w.max <- list()
+	
+	for( r in 1:restarts )
 	{	
-		Z.sum<-colSums(Z*counts.n)
+		# call the EM algorithm
 		
-		#M-step
-		Taut<-(Z.sum+delta-1)/(N1 + sum(delta)-G)
-		Thetat<-(t(Z)%*%(X*counts.n) + alpha-1)/(Z.sum + alpha + beta -2 + small)
+		w <- .C( 		"BLCA_EM_FIT", 							as.integer(X), 			
+							as.integer(N),								as.integer(M), 
+							as.integer(num.categories),	 		as.double(hparam),
+							as.integer(G),								as.integer(iter),
+							iters = as.integer(iter),				group.probs = as.double(group.probs),
+							weights = as.double(weights),			variable.probs = as.double(variable.probs),
+							as.integer(model.indicator),			log.post = as.double(log.post),
+							as.integer(MAP),							as.double(conv),
+							converged = as.integer(converged),
+							PACKAGE = "BayesLCA" )
+	
+		log.post.this <- w$log.post[ w$iters ]
 		
-		if(any(Taut<0)){Taut[Taut<0]<-0; Taut<-Taut/sum(Taut)}
-		if(any(Thetat<0)) Thetat[Thetat<0]<-0
-		if(any(Thetat>1)) Thetat[Thetat>1]<- 1 ##This should only be due to precision error
-				
-		#E-Step
-		dum<-array(apply(Thetat,1,dbinom, size=1, x=t(X)), dim=c(M,N,G))
-		Z1<-t(Taut*t(apply(dum, c(2,3), prod))) + small
-		Z<-Z1/rowSums(Z1)
-
-		#Log-Posterior
-		l<-sum(log(rowSums(Z1))*counts.n)+sum(xlogy(alpha-1,Thetat)+xlogy(beta-1,1-Thetat))+sum(xlogy(delta-1, Taut)) + lgamma(sum(delta)) - sum(lgamma(delta)) + sum(lgamma(alpha + beta)) - sum(lgamma(alpha) + lgamma(beta))
-
-		llstore[counter]<-l
-		if(counter>2)
+		#store the run that gives the highest value  of the log posterior
+		#	for the runs that have converged
+		new.max <- FALSE
+		if( log.post.this > log.post.max && w$converged == TRUE )
 		{
-			ll.inf<-(llstore[counter-1] - llstore[counter-2])/(llstore[counter] - llstore[counter-1])*(llstore[counter] - llstore[counter-2]) + llstore[counter-1]
+			w.max <- w 
+			log.post.max <- log.post.this
+			new.max <- TRUE
+		}
 		
-			if(llstore[counter] == llstore[counter-1]){ ll.inf<- llstore[counter]}
-		
-			eps<- ll.inf - llstore[counter]
-		}			
-				
-		counter<-counter+1		
-		if(counter>iter) break 
-		}#while
+		if( verbose ) 
+		{
+			if( new.max && r>1 )
+			{
+				cat( "\nNew maximum found... Restart number ",r,", logpost = ", round(log.post.this,2),"...", sep = "" )
+			}else{ 
+				cat( "\nRestart number ",r,", logpost = ", round(log.post.this,2),"...", sep = "" )
+			}
+		}
+	
+	}	
+	cat("\n")
+	
+	x <- list()
+	x$call <- match.call()
+	
+	x$converged <- w$converged
+	x$itersconv <- w$iters
+	
+	x$classprob <- w.max$weights
+	x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G )
+	colnames(x$Z) <- paste( "Group", 1:G )
+	
+	var.probs.l <- list()
+	
+	l <- 1
+	for( j in 1:M )
+	{
+		if(j == 1){
+			gap <- 0
+		}else{
+			gap <- G * sum( num.categories[1:(j-1)] )
+		}
+		#variable probabilities stacked by group and then iteration
+		if( model.indicator[j] )
+		{
+			var.probs.l[[l]] <- matrix( w$variable.probs[(gap+1):(gap + G*num.categories[j])] , nrow =  G, ncol=num.categories[j], byrow=TRUE )
+			rownames( var.probs.l[[l]] ) <-  paste( "Group", 1:G )
+			colnames( var.probs.l[[l]] ) <- paste("Cat",0:(num.categories[j]-1) )
+			l <- l+1
+		}
+	}
+	
+	if( is.null(colnames(X)) )
+	{
+		names( var.probs.l ) <- paste("Variable", which( model.indicator==1 ) )
+	}else{
+		names( var.probs.l ) <- colnames(X)[  which( model.indicator == 1 ) ]
+	}
+	
+	x$itemprob <- var.probs.l	
 
-		if(l > llcheck){
-		if(r>1 & verbose==TRUE)  cat("New maximum found... ")
-		  rstore<- list(Thetat=Thetat, Taut=Taut,Z=Z, l=l, llstore=llstore, counter=counter, eps=eps)
-		  
-		  llcheck<- l
-		  }
-		
-		if(verbose==TRUE){ cat(paste("Restart number ", r, ", logpost = ", round(l, 2), "... \n", sep=""))}
-		multistart.lp.store[r]<- l
-		
-		eps<-N1*M  ## Very important to reset these!!!
-		counter<-0
-		llstore<-0
-		if(r==1 & (is.matrix(start.vals) | is.numeric(start.vals)))  start.vals<- "single"
-		}#r
-		l<- llcheck 
-		o<- order(rstore$Taut, decreasing=TRUE)
-
-		x<-NULL
-		x$call<- match.call()
-		#Z.return<-matrix(0, N1, G)
-		#for(g in 1:G) Z.return[,g]<-rep(Z[,g], counts.n)
- 		if(G>1) x$itemprob<-rstore$Thetat[o, ] else x$itemprob<-rstore$Thetat
- 		if(!is.null(colnames(X)))if (G>1) colnames(x$itemprob)<- colnames(X)# else names(as.numeric(x$itemprob))<- colnames(X)
-		
-		x$classprob<- rstore$Taut[o]
-		x$Z<- rstore$Z[,o];
- 		if(G>1) rownames(x$Z)<- names(counts.n) else names(Z)<- names(counts.n)
- 		if(G>1) colnames(x$Z)<- paste("Group", 1:G)
-
-		x$logpost<- l
+	x$poststore <- w$log.post[ 1:w$iters ]
+	x$logpost <- log.post.max
   
-		likl<- l - sum(xlogy(alpha-1,Thetat)+xlogy(beta-1,1-Thetat))+sum(xlogy(delta-1, Taut)) + lgamma(sum(delta)) - sum(lgamma(delta)) + sum(lgamma(alpha + beta)) - sum(lgamma(alpha) + lgamma(beta))
-		x$BIC<- 2*likl-(G*M + G-1)*log(N1)
-		x$AIC<- 2*likl - 2*(G*M + G-1)
-		x$iter<- length(rstore$llstore)
-		x$poststore<- rstore$llstore
-		x$eps<- rstore$eps
-		x$counts<- counts.n
-		x$lpstarts<- multistart.lp.store
 		
-		x$prior<-NULL
-		x$prior$alpha<- alpha[o,]
-		x$prior$beta<- beta[o,]
-		x$prior$delta<- delta[o]
+	#x$BIC<- 2*likl-(G*M + G-1)*log(N1)
+	#x$AIC<- 2*likl - 2*(G*M + G-1)
+	#x$iter<- length(rstore$llstore)
+	
+	x$prior<-NULL
+	x$prior$alpha<- alpha
+	x$prior$beta<- beta
+	x$prior$delta<- delta
 
-		if(G>1){
+		if(FALSE){
 		if(sd){
 #			if(any(x$itemprob==0)){ warning("some item probability estimates are exactly zero. standard errors in this case are undefined.")}
 #			if(any(x$classprob==0)){ warning("some class probability estimates are exactly zero. standard errors in this case are undefined.")}
@@ -186,15 +173,15 @@ function( X, G, alpha=1, beta=1, delta=1, start.vals= c("single","across"), coun
 		if(convergence==2) {warning("some point estimates likely converged at saddle-point. at least some points will not be at a local maximum. \n rerunning the function with a larger number of restarts is recommended.")}
 		if(convergence==4){ warning("some point estimates located at boundary (i.e., are 1 or 0). posterior standard deviations will be 0 for these values.")}
 		x$convergence<- convergence
-		} else{ 
+		} else if(FALSE){ 
 		  x$convergence<- 1
 		  x$classprob.sd<- x$classprob.se<- 0
 		  x$itemprob.sd<- x$itemprob.se<- sqrt( ((Thetat*N1 + alpha)*( (1 - Thetat)*N1 + beta))/( (N1 + alpha + beta + small)^2 * (N1 + alpha + beta + 1 + small) ) )
 		}
-		x$small<- small
-		if((se==TRUE)&&(is.null(s.e.$classprob))) se<- FALSE
-		x$sd<- x$se<- se
+		#x$small<- small
+		#if((se==TRUE)&&(is.null(s.e.$classprob))) se<- FALSE
+		#x$sd<- x$se<- se
 		class(x)<-c("blca.em", "blca")
 
-		x
-		}
+		return(x)
+}
