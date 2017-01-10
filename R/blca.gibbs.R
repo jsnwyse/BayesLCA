@@ -13,7 +13,7 @@ blca.gibbs <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = 
 	#check that matrix is binary and/or n.categories is passed
 	if( is.null(num.categories) ){
 		if( !all( X[X>0]==1) ){
-			stop("\t A matrix other than binary must have non-null n.categories vector" )
+			stop("\t A matrix other than binary must have non-null n.categories vector\n" )
 		} else {
 			#matrix is binary
 			num.categories <- rep( 2, M )
@@ -21,15 +21,19 @@ blca.gibbs <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = 
 	}
 
 	t <- apply( X, 2, min )
-	if( sum(t) > 0 ) stop("\t please recode categories from 0,...,ncat  to use blca.collapsed")
+	if( sum(t) > 0 ) stop("\t please recode categories from 0, ..., ncat-1  to use blca.gibbs\n")
 	t <- apply( X, 2, max )
-	if( sum( t + 1 - num.categories ) > 0 ) stop("\n number of categories in X exceeds num.categories please recode categories from 0, ..., ncat.")
+	if( sum( t + 1 - num.categories ) > 0 ) stop("\n number of categories in X exceeds num.categories please recode categories from 0, ..., ncat-1\n")
 	
 	## safety checks ##
 	
 	if(length(num.categories)!= M){
-		stop("\t The length of n.categories must be the same as the number of records per observation.")
+		stop("\t The length of num.categories must be the same as the number of records per observation\n")
 	}	
+
+	if( length(alpha) > 1 ) stop("\t alpha value must be a positive scalar \n")
+	if( length(beta) > 1 ) stop("\t beta value must be a positive scalar \n")
+	if( length(delta) > 1 ) stop("\t delta value must be a positive scalar \n")
 
 	#if(iter < burn.in){
 	#	warning("\t The number of burn in iterations is greater than the number of iterations-- this will be automatically adjusted to the functions parameters.")
@@ -41,10 +45,10 @@ blca.gibbs <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = 
 
 	stored <- iter / thin
 
-	memberships = numeric(stored*N)
-	weights = numeric(stored*G)
-	variable.probs = numeric(stored*G*sum(num.categories))
-	log.post = numeric( stored )
+	memberships <- numeric(stored*N)
+	weights <- numeric(stored*G)
+	variable.probs <- numeric(stored*G*sum(num.categories))
+	log.post <- numeric( stored )
 	
 	model.indicator <- rep(1,M) #modify this later to allow for flexible model specification
 
@@ -121,6 +125,10 @@ blca.gibbs <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = 
 				v.probs[[l]]$mean[g,] <- apply( b, 2, mean )
 				v.probs[[l]]$se[g,] <- apply( b, 2, sd )
 			}
+			rownames( v.probs[[l]]$mean ) <- paste( "Group", 1:G )
+			colnames( v.probs[[l]]$mean ) <- paste("Cat",0:(num.categories[j]-1) )
+			rownames( v.probs[[l]]$se ) <- paste( "Group", 1:G )
+			colnames( v.probs[[l]]$se ) <- paste("Cat",0:(num.categories[j]-1) )
 			l <- l+1
 		}
 	}
