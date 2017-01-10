@@ -97,6 +97,8 @@ struct mix_mod
 	FILE *fp_log; /*file pointer for the debugger log*/
 	
 	int EM_fit ;
+	
+	int EM_MAP; /*find the map in an EM fit?*/ 
 
 };
 
@@ -111,7 +113,7 @@ struct mix_mod
 #include "BLCA_analysis.h"
 
 
-struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit) ;
+struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit, int EM_MAP) ;
 
 void BLCA_free_mixmod(struct mix_mod *mixmod) ;
 

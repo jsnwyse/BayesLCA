@@ -10,7 +10,7 @@
 			Ireland.
 			mailto: wyseja@tcd.ie
 
-	Last modification of this code: Mon 09 May 2016 16:27:18 IST  			
+	Last modification of this code: Tue 10 Jan 2017 11:54:12 GMT 			
 */
 
 #include "BLCA_mixmod.h"
@@ -21,7 +21,7 @@ void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int *nvar, 
 
 void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *verbose, int *verbose_update );
 
-void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol );
+void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol, int *converged );
 
 void BLCA_RELABEL( int *n_obs, int *n_sample, int *n_groups, int *labels_in, int *labels_out, int *permutation );
 
@@ -32,7 +32,7 @@ void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *fixed
 	struct mix_mod *mixmod;
 	struct results *results;
 	
-	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *max_n_groups, *init_n_groups, hparam, ncat, TRUE, FALSE );
+	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *max_n_groups, *init_n_groups, hparam, ncat, TRUE, FALSE, FALSE );
 	
 	if(*prior_G == 0){
 		BLCA_set_prior_on_number_of_components(mixmod,RICHARDSON_AND_GREEN);
@@ -96,7 +96,7 @@ void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int *nvar, 
 	struct results *input;
 	double **Estimate,**SE_Estimate;	
 
-	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, TRUE, FALSE );
+	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, TRUE, FALSE, FALSE );
 	
 	//mixmod->prior_prob_variable_include = (*prior_prob_include);
 	
@@ -159,7 +159,7 @@ void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int *nvar, 
 
 }
 
-/*------------------------------------original sampler not collapsed-------------------------------*/
+/*------------------------------------ Gibbs sampler (not collapsed)-------------------------------*/
 
 void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *verbose, int *verbose_update )
 {
@@ -167,7 +167,7 @@ void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam,
 	int i,j,n,d,inG,mxG,nit,nburn,fixed,justgibbs;
 	struct mix_mod *mixmod;
 	
-	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, FALSE );
+	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, FALSE, FALSE );
 
 	for(j=0;j<mixmod->d;j++){
 		mixmod->varindicator[j] = var_in[j];
@@ -202,22 +202,26 @@ void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam,
 
 /*-----------------------------------------fit using EM algorithm----------------------------------------*/
 
-void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol )
+void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol, int *converged )
 {
 
 		struct mix_mod *mixmod;
 		int i, j;
 		//if MAP == 1 then a prior regularizer is used in the EM through the hparam vector
 		
-		mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, FALSE );
+		mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, TRUE, *MAP );
 		
 		for(j=0;j<mixmod->d;j++){
 	  	 	mixmod->varindicator[j] = var_in[j];
 		}
 		
+		GetRNGstate();
+		
 		//initialize by using the values in group_weights and prob_variables
 		
 		BLCA_initialize_EM( mixmod , group_weights, prob_variables);
+		
+		PutRNGstate();
 		
 		int x;
 	
@@ -232,9 +236,8 @@ void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *
 		//important... need a function to initialize the algorithm...a
 		//can most likely pass the  initialization in through the arg--
 		//initialize_EM(mixmod,*n_groups);	
-			
 		
-		BLCA_analysis_EM( mixmod, *max_iterations, *iterations, group_probabilities, group_weights, prob_variables, log_likelihood, *MAP, *tol ) ;
+		BLCA_analysis_EM( mixmod, *max_iterations, iterations, group_probabilities, group_weights, prob_variables, log_likelihood, *MAP, *tol, converged ) ;
 		
 		free(mixmod);
 		

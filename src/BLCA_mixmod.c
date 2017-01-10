@@ -15,7 +15,7 @@
 
 #include "BLCA_mixmod.h"
 
-struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit)
+struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit, int EM_MAP)
 /*this function allocates and returns a pointer to a mixmod structure...*/
 {
 
@@ -30,6 +30,7 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 	mixmod->d = datadimension;
 	mixmod->collapsed = collapsed;
 	mixmod->EM_fit = EM_fit;
+	mixmod->EM_MAP = EM_MAP;
 	
 	mixmod->Y = calloc(datadimension,sizeof(int *));
 	for(i=0;i<datadimension;i++){

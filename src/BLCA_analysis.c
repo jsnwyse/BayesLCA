@@ -349,14 +349,18 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 }
 
 
-void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int iterations, double *membership_probabilities, double *group_weights, double *variable_probabilities, double *log_likelihood, int MAP, double tol ) 
+void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iterations, double *membership_probabilities, double *group_weights, double *variable_probabilities, double *log_likelihood, int MAP, double tol, int *converged ) 
 {
 	
 	int i, j, g, k, c, p, iter = 0 ;
 	double cond = DBL_MAX, llike_new, llike_old = -DBL_MAX ;
 	
+	//need to make a modification to this for when MAP == TRUE (not done yet)
+	
 	while( cond > tol  && iter < max_iterations )
 	{
+	
+		R_CheckUserInterrupt();
 		
 		BLCA_E_step( mixmod );
 		
@@ -373,6 +377,11 @@ void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int iteration
 		iter++;
 		
 	}
+	
+	if( cond < tol ) *converged = TRUE; else *converged = FALSE;
+	
+	//number of iterations to converge (if converged)
+	*iterations = iter;
 	
 	//store the results before returning
 	
@@ -443,6 +452,8 @@ void BLCA_M_step( struct mix_mod *mixmod )
 {
 	int k, g, j, c;
 	
+	//separate cases if the mixmod->EM_MAP is TRUE
+	
 	// get the sum of the probabilities
 	for( g=0; g<mixmod->G; g++ )
 	{
@@ -470,11 +481,24 @@ void BLCA_M_step( struct mix_mod *mixmod )
 				}
 				
 				for( c=0; c<mixmod->ncat[j]; c++ )
-					mixmod->components[g]->prob_variables[j][c] /= mixmod->weights[g] ;
+				{
+					if( mixmod->EM_MAP )
+					{
+						mixmod->components[g]->prob_variables[j][c] 
+							= ( mixmod->components[g]->prob_variables[j][c] + mixmod->beta - 1. )  / ( mixmod->weights[g] + mixmod->ncat[j] *( mixmod->beta - 1. ) ) ;
+					}
+					else
+					{
+						mixmod->components[g]->prob_variables[j][c] /= mixmod->weights[g] ;
+					}
+				}
 			}
 		}
 		
-		mixmod->weights[g] /= mixmod->n ;
+		if( mixmod->EM_MAP )
+			mixmod->weights[g] = ( mixmod->weights[g] + mixmod->alpha - 1. ) / ( mixmod->n + mixmod->G * ( mixmod->alpha - 1. ) ) ;
+		else
+			mixmod->weights[g] /= mixmod->n ;
 	}
 	
 	return;

@@ -118,6 +118,26 @@ double BLCA_get_log_likelihood(struct mix_mod *mixmod)
 		log_likelihood += BLCA_get_log_sum_exp( ld, mixmod->G ) ; 
 	}
 	
+	// additional terms for prior if looking for MAP 
+	if( mixmod->EM_MAP )
+	{
+		log_likelihood += lgamma( mixmod->G * mixmod->alpha ) - mixmod->G  * lgamma( mixmod->alpha ) ;
+		for( g=0; g<mixmod->G; g++ ) 
+		{
+			log_likelihood += ( mixmod->alpha - 1. ) *  log( mixmod->weights[g] ) ;
+			for( j=0; j<mixmod->d; j++ )
+			{
+				if( mixmod->varindicator[j] )
+				{
+					log_likelihood += lgamma( mixmod->ncat[j] * mixmod->beta ) - mixmod->ncat[j] * lgamma( mixmod->beta );
+					for( c=0; c<mixmod->ncat[j]; c++ ) log_likelihood += ( mixmod->beta - 1. ) * log( mixmod->components[g]->prob_variables[j][c] );
+				}
+			}
+		
+		}
+	
+	}
+	
 	free(ld);
 	return( log_likelihood ) ;
 }
