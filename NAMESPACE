@@ -10,7 +10,7 @@ importFrom(graphics, abline, axis, lines, matplot, mosaicplot, mtext, plot)
 importFrom(stats, dbeta, dbinom, density, rbeta, rmultinom, runif, sd, var, weighted.mean)
 
 
-exportPattern("Alzheimer", "blca", "blca.boot", "blca.em", "blca.em.sd", "blca.gibbs", "blca.vb", "data.blca", "MAP", "rlca", "unMAP", "Zscore")
+exportPattern("Alzheimer", "blca", "blca.boot", "blca.em", "blca.em.new", "blca.em.sd", "blca.gibbs", "blca.vb", "data.blca", "MAP", "rlca", "unMAP", "Zscore")
 S3method(as.mcmc, blca.gibbs)
 S3method(print, blca)
 S3method(plot, blca)
