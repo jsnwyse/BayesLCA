@@ -38,17 +38,9 @@ void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *fixed
 		BLCA_set_prior_on_number_of_components(mixmod,RICHARDSON_AND_GREEN);
 	}else{
 		BLCA_set_prior_on_number_of_components(mixmod,NOBILE_AND_FEARNSIDE);
-	}	
-	
-	int x;
-	
-	for(i=0;i<*nobs;i++){
-		for(j=0;j<*nvar;j++){
-			x = Y[i + j*(*nobs)];
-			mixmod->Y[j][i] = x;
-			mixmod->Yobs[i][j] = x;
-		}
 	}
+	
+	BLCA_initialize_data( mixmod, Y );	
 	
 	mixmod->n_gibbs = (*n_gibbs);
 	
@@ -96,7 +88,7 @@ void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int *nvar, 
 	struct results *input;
 	double **Estimate,**SE_Estimate;	
 
-	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, TRUE, FALSE, FALSE );
+	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, TRUE, FALSE, FALSE, FALSE );
 	
 	//mixmod->prior_prob_variable_include = (*prior_prob_include);
 	
@@ -167,21 +159,12 @@ void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam,
 	int i,j,n,d,inG,mxG,nit,nburn,fixed,justgibbs;
 	struct mix_mod *mixmod;
 	
-	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, FALSE, FALSE );
+	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, FALSE, FALSE, FALSE );
 
-	for(j=0;j<mixmod->d;j++){
+	for(j=0;j<mixmod->d;j++)
 		mixmod->varindicator[j] = var_in[j];
-	}
 	
-	int x;
-	
-	for(i=0;i<*nobs;i++){
-		for(j=0;j<*nvar;j++){
-			x = Y[i + j*(*nobs)];
-			mixmod->Y[j][i] = x;
-			mixmod->Yobs[i][j] = x;
-		}
-	}
+	BLCA_initialize_data( mixmod, Y );
 	
 	//important... need a function to initialize the algorithm...a
 	BLCA_initialize_simple(mixmod,*n_groups);
@@ -209,11 +192,10 @@ void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *
 		int i, j;
 		//if MAP == 1 then a prior regularizer is used in the EM through the hparam vector
 		
-		mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, TRUE, *MAP );
+		mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, TRUE, *MAP, FALSE );
 		
-		for(j=0;j<mixmod->d;j++){
-	  	 	mixmod->varindicator[j] = var_in[j];
-		}
+		for(j=0;j<mixmod->d;j++) 
+			mixmod->varindicator[j] = var_in[j];
 		
 		GetRNGstate();
 		
@@ -223,15 +205,7 @@ void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *
 		
 		PutRNGstate();
 		
-		int x;
-	
-		for(i=0;i<*nobs;i++){
-			for(j=0;j<*nvar;j++){
-				x = Y[i + j*(*nobs)];
-				mixmod->Y[j][i] = x;
-				mixmod->Yobs[i][j] = x;
-			}
-		}			
+		BLCA_initialize_data( mixmod, Y );	
 
 		//important... need a function to initialize the algorithm...a
 		//can most likely pass the  initialization in through the arg--
@@ -239,9 +213,39 @@ void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *
 		
 		BLCA_analysis_EM( mixmod, *max_iterations, iterations, group_probabilities, group_weights, prob_variables, log_likelihood, *MAP, *tol, converged ) ;
 		
-		free(mixmod);
+		BLCA_free_mixmod(mixmod);
 		
 		return;
+}
+
+void BLCA_VB_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *phi, double *alpha_ud, double *beta_ud, int *var_in, double *lower_bound, double *tol, int *converged )
+{
+
+		struct mix_mod *mixmod;
+		int i, j;
+		//if MAP == 1 then a prior regularizer is used in the EM through the hparam vector
+		
+		mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, TRUE, FALSE, TRUE );
+
+		for(j=0;j<mixmod->d;j++) 
+			mixmod->varindicator[j] = var_in[j];
+		
+		GetRNGstate();
+		
+		//initialize by using the values in group_weights and prob_variables
+		
+		BLCA_initialize_VB( mixmod , alpha_ud, beta_ud );
+		
+		PutRNGstate();
+
+		BLCA_initialize_data( mixmod, Y );
+		
+		BLCA_analysis_VB( mixmod, *max_iterations, iterations, phi, alpha_ud, beta_ud, lower_bound, *tol, converged );
+		
+		BLCA_free_mixmod( mixmod );
+		
+		return;
+		
 }
 
 
@@ -356,6 +360,7 @@ void BLCA_RELABEL( int *n_obs, int *n_sample, int *n_groups, int *labels_in, int
 
 	return;
 }
+
 
 
 

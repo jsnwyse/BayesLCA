@@ -14,7 +14,9 @@
 	
 #include "BLCA_analysis.h"
 
-struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int fixedG, int onlyGibbs, int selectVariables, int *group_memberships, int *variable_inclusion_indicator, int *n_groups, double *log_joint_posterior, double *prior_include, int *var_pattern )
+struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int fixedG, int onlyGibbs, 
+			int selectVariables, int *group_memberships, int *variable_inclusion_indicator, int *n_groups, double *log_joint_posterior, 
+			double *prior_include, int *var_pattern )
 /*fixedG takes the value either TRUE or FALSE as defined in the macros*/
 {
 
@@ -185,7 +187,8 @@ struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_it
 }
 
 
-void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int *group_memberships, double *group_weights, double *variable_probabilities, double *log_joint_posterior, int verbose, int verbose_update )
+void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int *group_memberships, 
+						double *group_weights, double *variable_probabilities, double *log_joint_posterior, int verbose, int verbose_update )
 {
 
 	//this is the non-collapsed form of the model which uses Gibbs updates for all unknowns...
@@ -349,7 +352,8 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 }
 
 
-void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iterations, double *membership_probabilities, double *group_weights, double *variable_probabilities, double *log_likelihood, int MAP, double tol, int *converged ) 
+void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iterations, double *membership_probabilities, 
+				double *group_weights, double *variable_probabilities, double *log_likelihood, int MAP, double tol, int *converged ) 
 {
 	
 	int i, j, g, k, c, p, iter = 0 ;
@@ -504,6 +508,78 @@ void BLCA_M_step( struct mix_mod *mixmod )
 	return;
 }
 
+/*-------------------------------------- VB algorithm -----------------------------------*/
 
+void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iterations, double *phi, double *alpha_ud, 
+				double *beta_ud, double *lower_bound, double tol, int *converged )
+{
+	int i, j, g, k, c, p, iter = 0 ;
+	double cond = DBL_MAX, bound_new, bound_old = -DBL_MAX ;
+	
+	//need to make a modification to this for when MAP == TRUE (not done yet)
+	
+	while( cond > tol  && iter < max_iterations )
+	{
+	
+		R_CheckUserInterrupt();
+		
+		BLCA_VB_phi_step( mixmod );
+		
+		BLCA_VB_alpha_beta_step( mixmod );
+		
+		bound_new = BLCA_get_VB_bound( mixmod ) ;
+		
+		cond = fabs( bound_new - bound_old ) ;
+		
+		bound_old = bound_new;
+		
+		lower_bound[ iter ] = bound_new ;
+		
+		iter++;
+		
+	}
+	
+	if( cond < tol ) *converged = TRUE; else *converged = FALSE;
+	
+	//number of iterations to converge (if converged)
+	*iterations = iter;
+	
+	//store the results before returning
+	
+	for( g=0; g<mixmod->G ; g++ ) alpha_ud[g] = mixmod->alpha_ud[g] ;
+	
+	for( k=0; k<mixmod->n; k++ ) 
+	{
+		for( g=0; g<mixmod->G; g++ )
+			phi[ (mixmod->n)*g + k ] = mixmod->s[k][g] ;
+	}
+	
+	p = 0;
+	int gap_;
+	
+	for( j=0; j<mixmod->d; j++ )
+	{
+		gap_ = p * mixmod->G;
+		
+		for( g=0; g<mixmod->G; g++ )
+		{
+			for( c=0; c<mixmod->ncat[j]; c++ )
+			{
+				beta_ud[ gap_ + g * mixmod->ncat[j] + c ] = mixmod->components[g]->beta_ud[j][c] ;
+			}
+		} 
+		
+		p += mixmod->ncat[j] ;
+	
+	}
+	
+	return;
+}
+
+void BLCA_VB_phi_step( struct mix_mod *mixmod )
+{
+	
+
+}
 
 

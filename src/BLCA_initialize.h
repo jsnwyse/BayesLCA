@@ -20,6 +20,8 @@
 
 void BLCA_set_prior_on_number_of_components(struct mix_mod *mixmod,int type) ;
 
+void BLCA_initialize_data( struct mix_mod *mixmod, int *Y );
+
 int BLCA_initialize_simple(struct mix_mod *mixmod,int numgroups) ;
 
 void BLCA_initialize_EM( struct mix_mod *mixmod , double *group_weights, double *prob_variables) ;

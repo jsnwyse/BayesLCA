@@ -17,14 +17,22 @@
 
 #include "BLCA_mixmod.h"
 
-struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int fixedG, int onlyGibbs, int selectVariables, int *group_memberships, int *variable_inclusion_indicator, int *n_groups, double *log_joint_posterior, double *prior_include, int *var_pattern );
+struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int fixedG, int onlyGibbs, 
+				int selectVariables, int *group_memberships, int *variable_inclusion_indicator, int *n_groups, double *log_joint_posterior,
+				 double *prior_include, int *var_pattern );
 
-void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int *group_memberships, double *group_weights, double *variable_probabilities, double *log_joint_posterior, int verbose, int verbose_update );
+void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int *group_memberships, 
+				double *group_weights, double *variable_probabilities, double *log_joint_posterior, int verbose, int verbose_update );
 
-void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iterations, double *membership_probabilities, double *group_weights, double *variable_probabilities, double *log_likelihood, int MAP, double tol, int *converged ) ;
+void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iterations, double *membership_probabilities, double *group_weights, 
+			double *variable_probabilities, double *log_likelihood, int MAP, double tol, int *converged ) ;
 
 void BLCA_E_step( struct mix_mod *mixmod );
 
 void BLCA_M_step( struct mix_mod *mixmod );
+
+void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iterations, double *phi, double *alpha_ud, 
+				double *beta_ud, double *lower_bound, double tol, int *converged ) ;
+
 
 #endif

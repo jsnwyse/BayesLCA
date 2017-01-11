@@ -46,6 +46,20 @@ void BLCA_set_prior_on_number_of_components(struct mix_mod *mixmod,int type)
 
 }
 
+void BLCA_initialize_data( struct mix_mod *mixmod, int *Y )
+{
+	int i, j, x, nobs = mixmod->n, nvar = mixmod->d ;
+	
+	for(i=0;i<nobs;i++)
+	{
+		for(j=0;j<nvar;j++)
+		{
+			x = Y[i + j*(nobs)];
+			mixmod->Y[j][i] = x;
+			mixmod->Yobs[i][j] = x;
+		}
+	}
+}
 
 int BLCA_initialize_simple(struct mix_mod *mixmod,int numgroups)
 /*gives a very simple initialization of the model by just dumping the
@@ -134,17 +148,47 @@ void BLCA_initialize_EM( struct mix_mod *mixmod , double *group_weights, double 
 	{
 		for( j=0; j<mixmod->d; j++ )
 		{
-			//initialize the variable probabilities randomly
-			s = 0.;
-			for( c=0; c<mixmod->ncat[j]; c++ )
+			if( mixmod->varindicator[j] )
 			{
-				mixmod->components[g]->prob_variables[j][c]  = rgamma( 1., 1.);
-				s += mixmod->components[g]->prob_variables[j][c] ;
+				//initialize the variable probabilities randomly
+				s = 0.;
+				for( c=0; c<mixmod->ncat[j]; c++ )
+				{
+					mixmod->components[g]->prob_variables[j][c]  = rgamma( 1., 1.);
+					s += mixmod->components[g]->prob_variables[j][c] ;
+				}
+				for( c=0; c<mixmod->ncat[j]; c++ )
+					mixmod->components[g]->prob_variables[j][c] /= s ;
 			}
-			for( c=0; c<mixmod->ncat[j]; c++ )
-				mixmod->components[g]->prob_variables[j][c] /= s ;
 		}
 	}
 	return;
 }
+
+
+void BLCA_initialize_VB( struct mix_mod *mixmod , double *alpha_ud, double *beta_ud )
+{
+	int g, j, c, p=0, gap_;
+	double s=0.;
+	
+	//initialize everything randomly
+	for( g=0; g<mixmod->G; g++ ) 
+		mixmod->alpha_ud[g] = rgamma( 1. , 1. ) ;
+	
+	
+	for( g=0; g<mixmod->G; g++ )
+	{
+		for( j=0; j<mixmod->d; j++ )
+		{
+			if( mixmod->varindicator[j] )
+			{
+				for( c=0; c<mixmod->ncat[j]; c++ )
+					mixmod->components[g]->beta_ud[j][c]  = rgamma( 1., 1.);
+			}
+		}
+	}
+	return;
+}
+
+
 

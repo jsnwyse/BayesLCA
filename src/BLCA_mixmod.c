@@ -15,7 +15,7 @@
 
 #include "BLCA_mixmod.h"
 
-struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit, int EM_MAP)
+struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit, int EM_MAP, int VB )
 /*this function allocates and returns a pointer to a mixmod structure...*/
 {
 
@@ -31,6 +31,7 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 	mixmod->collapsed = collapsed;
 	mixmod->EM_fit = EM_fit;
 	mixmod->EM_MAP = EM_MAP;
+	mixmod->VB =  VB;
 	
 	mixmod->Y = calloc(datadimension,sizeof(int *));
 	for(i=0;i<datadimension;i++){
@@ -44,7 +45,7 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 	
 	if( !EM_fit ) mixmod->z = calloc(datasize,sizeof(int));
 	
-	if( EM_fit ) 
+	if( EM_fit || VB ) 
 	{
 		mixmod->s = calloc(datasize, sizeof(double *));
 		for( i=0;i<datasize;i++){
@@ -109,6 +110,8 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 	
 	if( !mixmod->collapsed || EM_fit ) mixmod->weights = calloc(mixmod->G,sizeof(double));
 	
+	if( VB ) mixmod->alpha_ud = calloc( mixmod->G, sizeof(double));
+	
 	return(mixmod);
 
 }
@@ -145,7 +148,7 @@ void BLCA_free_mixmod(struct mix_mod *mixmod)
 	/*free others*/
 	if( !mixmod->EM_fit ) free(mixmod->z);
 	
-	if( mixmod->EM_fit )
+	if( mixmod->EM_fit || mixmod->VB )
 	{
 		for(i=0;i<n;i++) free(mixmod->s[i]);
 		free(mixmod->s);
@@ -161,11 +164,13 @@ void BLCA_free_mixmod(struct mix_mod *mixmod)
 	//free(mixmod->table_a);
 	
 	if( !mixmod->collapsed || mixmod->EM_fit ) free(mixmod->weights);
+	if( mixmod->VB ) free(mixmod->alpha_ud);
 	
 	free(mixmod);
 	
 	return;
 }
+
 
 
 
