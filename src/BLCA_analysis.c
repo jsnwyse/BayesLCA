@@ -510,8 +510,8 @@ void BLCA_M_step( struct mix_mod *mixmod )
 
 /*-------------------------------------- VB algorithm -----------------------------------*/
 
-void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iterations, double *phi, double *alpha_ud, 
-				double *beta_ud, double *lower_bound, double tol, int *converged )
+void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iterations, double *group_probabilities, double *group_weights, 
+				double *sd_group_weights, double *prob_variables, double *sd_prob_variables, double *lower_bound, double tol, int *converged, double *log_post )
 {
 	int i, j, g, k, c, p, iter = 0 ;
 	double cond = DBL_MAX, bound_new, bound_old = -DBL_MAX ;
@@ -546,32 +546,83 @@ void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iteratio
 	
 	//store the results before returning
 	
-	for( g=0; g<mixmod->G ; g++ ) alpha_ud[g] = mixmod->alpha_ud[g] ;
+	double sum_alpha_ud = 0., var;
+	for( g=0; g<mixmod->G ; g++ ) sum_alpha_ud += mixmod->alpha_ud[g] ;
+	
+	for( g=0; g<mixmod->G ; g++ )  
+	{
+		group_weights[g] = mixmod->alpha_ud[g] / sum_alpha_ud ;
+		mixmod->weights[g] = group_weights[g] ;
+		var = mixmod->alpha_ud[g] * ( sum_alpha_ud - mixmod->alpha_ud[g] ) / ( sum_alpha_ud * sum_alpha_ud * ( sum_alpha_ud + 1. ) );
+		sd_group_weights[g] = sqrt( var );
+	}
 	
 	for( k=0; k<mixmod->n; k++ ) 
 	{
 		for( g=0; g<mixmod->G; g++ )
-			phi[ (mixmod->n)*g + k ] = mixmod->s[k][g] ;
+			group_probabilities[ (mixmod->n)*g + k ] = mixmod->s[k][g] ;
 	}
 	
 	p = 0;
 	int gap_;
 	
+	//convert the beta_ud into expect values of the theta's
+	
+	struct component *comp;
+	double sum_b = 0., ***var_prob_variables ;
+	
+	var_prob_variables = calloc( mixmod->G, sizeof(double**) );
+	for( g=0; g<mixmod->G; g++ )
+	{
+		var_prob_variables[g] = calloc( mixmod->d, sizeof(double *) );
+		for( j=0; j<mixmod->d; j++ ) 
+			var_prob_variables[g][j] = calloc( mixmod->ncat[j], sizeof(double) );
+	}
+	
+	for( g=0; g<mixmod->G; g++ )
+	{
+		comp = mixmod->components[g] ;
+		
+		for( j=0; j<mixmod->d; j++ )
+		{
+			if( mixmod->varindicator[j] )
+			{
+				sum_b = 0.;
+				for( c=0; c<mixmod->ncat[j]; c++ ) sum_b += comp->beta_ud[j][c] ;
+				for( c=0; c<mixmod->ncat[j]; c++ ) 
+				{
+					comp->prob_variables[j][c] = comp->beta_ud[j][c] / sum_b;
+					var_prob_variables[g][j][c] = comp->beta_ud[j][c] * ( sum_b - comp->beta_ud[j][c] ) / ( sum_b * sum_b * ( sum_b + 1. )  ) ;
+				}
+			}
+		}
+	
+	}
+	
 	for( j=0; j<mixmod->d; j++ )
 	{
 		gap_ = p * mixmod->G;
-		
 		for( g=0; g<mixmod->G; g++ )
 		{
 			for( c=0; c<mixmod->ncat[j]; c++ )
 			{
-				beta_ud[ gap_ + g * mixmod->ncat[j] + c ] = mixmod->components[g]->beta_ud[j][c] ;
+				prob_variables[ gap_ + g * mixmod->ncat[j] + c ] = mixmod->components[g]->prob_variables[j][c] ;
+				sd_prob_variables[ gap_ + g * mixmod->ncat[j] + c ] = sqrt( var_prob_variables[g][j][c] ) ;
 			}
 		} 
-		
 		p += mixmod->ncat[j] ;
-	
 	}
+	
+	for( g=0; g<mixmod->G; g++ )
+	{
+		for( j=0; j<mixmod->d; j++ ) free( var_prob_variables[g][j] );
+		free( var_prob_variables[g] );
+	}
+	free( var_prob_variables );
+	
+	//compute the log of the posterior... 
+	
+	*log_post = BLCA_get_log_likelihood( mixmod );
 	
 	return;
 }
@@ -588,14 +639,14 @@ void BLCA_VB_phi_step( struct mix_mod *mixmod )
 			
 			comp = mixmod->components[g];
 			
-			mixmod->s[k][g] = mixmod->di_alpha_ud[g] - mixmod->sum_di_alpha_ud ;
+			mixmod->s[k][g] = mixmod->di_alpha_ud[g] - mixmod->di_sum_alpha_ud ;
 			
 			for( j=0; j<mixmod->d; j++ ){
 				
 				if( mixmod->varindicator[j] )
 				{
 					c = mixmod->Y[j][k] ;
-					mixmod->s[k][g] += comp->di_beta_ud[j][c] - comp->sum_di_beta_ud[j] ;
+					mixmod->s[k][g] += comp->di_beta_ud[j][c] - comp->di_sum_beta_ud[j] ;
 				}
 			
 			}	
@@ -624,12 +675,13 @@ void BLCA_VB_alpha_beta_step( struct mix_mod *mixmod )
 	}
 	
 	//alpha update 
-	mixmod->sum_di_alpha_ud = 0.;
+	mixmod->di_sum_alpha_ud = 0.;
 	for( g=0; g<mixmod->G; g++ )
 	{
 		mixmod->alpha_ud[g] = colsums[g] + mixmod->alpha; 
-		mixmod->di_alpha_ud[g] = digammaRN( alpha_ud[g] );
-		mixmod->sum_di_alpha_ud += mixmod->di_alpha_ud[g];
+		mixmod->di_alpha_ud[g] = digammaRN( mixmod->alpha_ud[g] );
+		//we should be getting the digamma of the sum not the sum of the digammas!
+		mixmod->di_sum_alpha_ud += mixmod->alpha_ud[g];
 		
 		//initialize the beta update
 		comp = mixmod->components[g];
@@ -643,13 +695,15 @@ void BLCA_VB_alpha_beta_step( struct mix_mod *mixmod )
 		}
 		
 	}
+	mixmod->di_sum_alpha_ud = digammaRN( mixmod->di_sum_alpha_ud );
 	
 	//beta update 
-	for( k=0; k<mixmod->n; k++ )
+
+	for( g=0; g<mixmod->G; g++ )
 	{
-		for( g=0; g<mixmod->G; g++ )
+		comp = mixmod->components[g];
+		for( k=0; k<mixmod->n; k++ )
 		{
-			comp = mixmod->components[g];
 			for( j=0; j<mixmod->d; j++ )
 			{
 				if( mixmod->varindicator[j] )
@@ -666,11 +720,15 @@ void BLCA_VB_alpha_beta_step( struct mix_mod *mixmod )
 		comp = mixmod->components[g];	
 		for( j=0; j<mixmod->d; j++ )
 		{
-			comp->sum_di_beta_ud[j] = 0.;
 			if( mixmod->varindicator[j] )
 			{
-				comp->di_beta_ud[j][c] = digammaRN( comp->beta_ud[j][c] ) ;
-				comp->sum_di_beta_ud[j] += comp->di_beta_ud[j][c] ;
+				comp->di_sum_beta_ud[j] = 0.;
+				for( c=0; c<mixmod->ncat[j]; c++ )
+				{
+					comp->di_beta_ud[j][c] = digammaRN( comp->beta_ud[j][c] ) ;
+					comp->di_sum_beta_ud[j] += comp->beta_ud[j][c] ;
+				}
+				comp->di_sum_beta_ud[j] = digammaRN( comp->di_sum_beta_ud[j] ) ;
 			}
 		}
 	}

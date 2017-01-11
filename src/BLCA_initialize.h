@@ -26,4 +26,6 @@ int BLCA_initialize_simple(struct mix_mod *mixmod,int numgroups) ;
 
 void BLCA_initialize_EM( struct mix_mod *mixmod , double *group_weights, double *prob_variables) ;
 
+void BLCA_initialize_VB( struct mix_mod *mixmod , double *alpha_ud, double *beta_ud );
+
 #endif

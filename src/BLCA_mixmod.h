@@ -32,7 +32,7 @@ struct component
 	
 	double **beta_ud; /*dirichlet parameters for VB*/
 	double **di_beta_ud;
-	double *sum_di_beta_ud;
+	double *di_sum_beta_ud;
 	
 	double log_prob; /*quantity that can be updated to save computations*/
 
@@ -92,7 +92,7 @@ struct mix_mod
 	
 	double *alpha_ud; /*dirichlet parameters for the variational approximation*/
 	double *di_alpha_ud;
-	double sum_di_alpha_ud;
+	double di_sum_alpha_ud;
 	
 	int hprior_model; /*logical: sample a hyperprior on the probability of variable inclusion*/
 	
@@ -107,6 +107,8 @@ struct mix_mod
 	int EM_fit ;
 	
 	int EM_MAP; /*find the map in an EM fit?*/ 
+	
+	int VB;
 
 };
 
@@ -121,7 +123,8 @@ struct mix_mod
 #include "BLCA_analysis.h"
 
 
-struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit, int EM_MAP) ;
+struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,
+ double *prior_hparams, int *ncat, int collapsed, int EM_fit, int EM_MAP, int VB ) ;
 
 void BLCA_free_mixmod(struct mix_mod *mixmod) ;
 

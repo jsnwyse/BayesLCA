@@ -170,18 +170,30 @@ void BLCA_initialize_EM( struct mix_mod *mixmod , double *group_weights, double 
 
 void BLCA_initialize_VB( struct mix_mod *mixmod , double *alpha_ud, double *beta_ud )
 {
-	int g, j, c, p=0, gap_;
+	int k, g, j, c, p=0, gap_;
 	double s=0.;
 	struct component *comp;
 	
+	for( k=0; k<mixmod->n; k++ )
+	{
+		s = 0.;
+		for( g=0; g<mixmod->G; g++ )
+		{
+			mixmod->s[k][g] = rgamma( 1. , 1. );
+			s += mixmod->s[k][g] ;
+		}
+		for( g=0; g<mixmod->G; g++ ) mixmod->s[k][g] /= s ;
+	}
+	
 	//initialize everything randomly
-	mixmod->sum_di_alpha_ud = 0.;
+	mixmod->di_sum_alpha_ud = 0.;
 	for( g=0; g<mixmod->G; g++ ) 
 	{
 		mixmod->alpha_ud[g] = rgamma( 1. , 1. ) ;
+		mixmod->di_sum_alpha_ud += mixmod->alpha_ud[g];
 		mixmod->di_alpha_ud[g] = digammaRN( mixmod->alpha_ud[g] );
-		mixmod->sum_di_alpha_ud += mixmod->di_alpha_ud[g];
 	}
+	mixmod->di_sum_alpha_ud = digammaRN( mixmod->di_sum_alpha_ud );
 	
 	for( g=0; g<mixmod->G; g++ )
 	{
@@ -190,13 +202,14 @@ void BLCA_initialize_VB( struct mix_mod *mixmod , double *alpha_ud, double *beta
 		{
 			if( mixmod->varindicator[j] )
 			{
-				comp->sum_di_beta_ud[j] = 0.;
+				comp->di_sum_beta_ud[j] = 0.;
 				for( c=0; c<mixmod->ncat[j]; c++ )
 				{
 					comp->beta_ud[j][c]  = rgamma( 1., 1.);
+					comp->di_sum_beta_ud[j] += comp->beta_ud[j][c] ;
 					comp->di_beta_ud[j][c] = digammaRN( comp->beta_ud[j][c] );
-					comp->sum_di_beta_ud[j] += comp->di_beta_ud[j][c];
 				}
+				comp->di_sum_beta_ud[j] = digammaRN( comp->di_sum_beta_ud[j] ) ;
 			}
 		}
 	}

@@ -108,7 +108,7 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 	
 	//mixmod->table_a = calloc(datasize,sizeof(double));
 	
-	if( !mixmod->collapsed || EM_fit ) mixmod->weights = calloc(mixmod->G,sizeof(double));
+	if( !mixmod->collapsed ) mixmod->weights = calloc(mixmod->G,sizeof(double));
 	
 	if( VB ) 
 	{
@@ -167,7 +167,7 @@ void BLCA_free_mixmod(struct mix_mod *mixmod)
 	/*free table*/
 	//free(mixmod->table_a);
 	
-	if( !mixmod->collapsed || mixmod->EM_fit ) free(mixmod->weights);
+	if( !mixmod->collapsed ) free(mixmod->weights);
 	if( mixmod->VB ) 
 	{
 		free(mixmod->alpha_ud);

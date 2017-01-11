@@ -26,7 +26,7 @@ void BLCA_allocate_component(struct component *component,struct mix_mod *mixmod)
 		component->N[j] = calloc(mixmod->ncat[j],sizeof(int));
 	}
 	
-	if( !mixmod->collapsed || mixmod->EM_fit )
+	if( !mixmod->collapsed )
 	{
 		component->prob_variables = calloc(mixmod->d,sizeof(double *));
 		for(j=0;j<mixmod->d;j++){
@@ -38,7 +38,7 @@ void BLCA_allocate_component(struct component *component,struct mix_mod *mixmod)
 	{
 		component->beta_ud = calloc( mixmod->d, sizeof(double *));
 		component->di_beta_ud = calloc( mixmod->d, sizeof(double *));
-		component->sum_di_beta_ud = calloc( mixmod->d, sizeof(double));
+		component->di_sum_beta_ud = calloc( mixmod->d, sizeof(double));
 		for(j=0;j<mixmod->d;j++){
 			component->beta_ud[j] = calloc(mixmod->ncat[j],sizeof(double));
 			component->di_beta_ud[j] = calloc(mixmod->ncat[j],sizeof(double));
@@ -58,7 +58,7 @@ void BLCA_free_component(struct component *component,struct mix_mod *mixmod)
 	}
 	free(component->N);
 	
-	if( !mixmod->collapsed || mixmod->EM_fit )
+	if( !mixmod->collapsed )
 	{
 		for(j=0;j<mixmod->d;j++){
 			free(component->prob_variables[j]);
@@ -74,7 +74,7 @@ void BLCA_free_component(struct component *component,struct mix_mod *mixmod)
 		}	
 		free(component->beta_ud);
 		free(component->di_beta_ud);
-		free(component->sum_di_beta_ud);
+		free(component->di_sum_beta_ud);
 	}
 	
 	return;

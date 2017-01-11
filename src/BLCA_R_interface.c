@@ -23,6 +23,8 @@ void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam,
 
 void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol, int *converged );
 
+void BLCA_VB_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *sd_group_weights, double *prob_variables, double *sd_prob_variables, int *var_in, double *lower_bound, double *tol, int *converged, double *log_post );
+
 void BLCA_RELABEL( int *n_obs, int *n_sample, int *n_groups, int *labels_in, int *labels_out, int *permutation );
 
 void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *fixed_groups, int *just_gibbs_updates, int *init_n_groups, int *max_n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *n_gibbs, int *group_memberships, int *n_groups, int *prior_G, int *variable_select, int *variable_inclusion_indicator, double *prior_prob_include, double *log_joint_posterior, int *hprior_model, double *prior_include, int *var_pattern )
@@ -32,7 +34,7 @@ void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *fixed
 	struct mix_mod *mixmod;
 	struct results *results;
 	
-	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *max_n_groups, *init_n_groups, hparam, ncat, TRUE, FALSE, FALSE );
+	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *max_n_groups, *init_n_groups, hparam, ncat, TRUE, FALSE, FALSE, FALSE );
 	
 	if(*prior_G == 0){
 		BLCA_set_prior_on_number_of_components(mixmod,RICHARDSON_AND_GREEN);
@@ -218,7 +220,7 @@ void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *
 		return;
 }
 
-void BLCA_VB_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *phi, double *alpha_ud, double *beta_ud, int *var_in, double *lower_bound, double *tol, int *converged )
+void BLCA_VB_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *sd_group_weights, double *prob_variables, double *sd_prob_variables, int *var_in, double *lower_bound, double *tol, int *converged, double *log_post )
 {
 
 		struct mix_mod *mixmod;
@@ -234,13 +236,13 @@ void BLCA_VB_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *
 		
 		//initialize by using the values in group_weights and prob_variables
 		
-		BLCA_initialize_VB( mixmod , alpha_ud, beta_ud );
+		BLCA_initialize_VB( mixmod , group_weights, prob_variables );
 		
 		PutRNGstate();
 
 		BLCA_initialize_data( mixmod, Y );
 		
-		BLCA_analysis_VB( mixmod, *max_iterations, iterations, phi, alpha_ud, beta_ud, lower_bound, *tol, converged );
+		BLCA_analysis_VB( mixmod, *max_iterations, iterations, group_probabilities, group_weights, sd_group_weights, prob_variables, sd_prob_variables, lower_bound, *tol, converged, log_post );
 		
 		BLCA_free_mixmod( mixmod );
 		
