@@ -578,8 +578,106 @@ void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iteratio
 
 void BLCA_VB_phi_step( struct mix_mod *mixmod )
 {
-	
+	int k, g, j, c;
+	double lse;
+	struct component *comp;
 
+	for( k=0; k<mixmod->n; k++ ){
+	
+		for( g=0; g<mixmod->G; g++ ){
+			
+			comp = mixmod->components[g];
+			
+			mixmod->s[k][g] = mixmod->di_alpha_ud[g] - mixmod->sum_di_alpha_ud ;
+			
+			for( j=0; j<mixmod->d; j++ ){
+				
+				if( mixmod->varindicator[j] )
+				{
+					c = mixmod->Y[j][k] ;
+					mixmod->s[k][g] += comp->di_beta_ud[j][c] - comp->sum_di_beta_ud[j] ;
+				}
+			
+			}	
+		}
+		
+		lse = BLCA_get_log_sum_exp( mixmod->s[k], mixmod->G );
+	}
+
+	return;	
 }
+
+void BLCA_VB_alpha_beta_step( struct mix_mod *mixmod )
+{
+	
+	//update the alphas first
+	int k, g, j, c;
+	double *colsums = calloc( mixmod->G, sizeof(double) );
+	struct component *comp;
+
+	for( g=0; g<mixmod->G; g++ )
+	{
+		for( k=0; k<mixmod->n; k++ )
+		{
+			colsums[g] += mixmod->s[k][g] ;
+		}
+	}
+	
+	//alpha update 
+	mixmod->sum_di_alpha_ud = 0.;
+	for( g=0; g<mixmod->G; g++ )
+	{
+		mixmod->alpha_ud[g] = colsums[g] + mixmod->alpha; 
+		mixmod->di_alpha_ud[g] = digammaRN( alpha_ud[g] );
+		mixmod->sum_di_alpha_ud += mixmod->di_alpha_ud[g];
+		
+		//initialize the beta update
+		comp = mixmod->components[g];
+		for( j=0; j<mixmod->d; j++ )
+		{
+			if( mixmod->varindicator[j] )
+			{
+				for( c=0; c<mixmod->ncat[j]; c++ )
+					comp->beta_ud[j][c] = mixmod->beta ;
+			}
+		}
+		
+	}
+	
+	//beta update 
+	for( k=0; k<mixmod->n; k++ )
+	{
+		for( g=0; g<mixmod->G; g++ )
+		{
+			comp = mixmod->components[g];
+			for( j=0; j<mixmod->d; j++ )
+			{
+				if( mixmod->varindicator[j] )
+				{
+					c = mixmod->Y[j][k] ;
+					comp->beta_ud[j][c] += mixmod->s[k][g] ;
+				}
+			}
+		}
+	}
+	
+	for( g=0; g<mixmod->G; g++ )
+	{
+		comp = mixmod->components[g];	
+		for( j=0; j<mixmod->d; j++ )
+		{
+			comp->sum_di_beta_ud[j] = 0.;
+			if( mixmod->varindicator[j] )
+			{
+				comp->di_beta_ud[j][c] = digammaRN( comp->beta_ud[j][c] ) ;
+				comp->sum_di_beta_ud[j] += comp->di_beta_ud[j][c] ;
+			}
+		}
+	}
+
+	free( colsums );
+	return;
+}
+
 
 

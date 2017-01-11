@@ -34,5 +34,8 @@ void BLCA_M_step( struct mix_mod *mixmod );
 void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iterations, double *phi, double *alpha_ud, 
 				double *beta_ud, double *lower_bound, double tol, int *converged ) ;
 
+void BLCA_VB_phi_step( struct mix_mod *mixmod );
+
+void BLCA_VB_alpha_beta_step( struct mix_mod *mixmod );
 
 #endif
