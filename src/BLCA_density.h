@@ -27,4 +27,6 @@ double BLCA_get_full_log_posterior_x2(struct mix_mod *mixmod) ;
 
 double BLCA_get_log_likelihood(struct mix_mod *mixmod) ;
 
+double BLCA_get_VB_bound( struct mix_mod *mixmod ) ;
+
 #endif
