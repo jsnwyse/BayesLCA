@@ -142,3 +142,71 @@ double BLCA_get_log_likelihood(struct mix_mod *mixmod)
 	return( log_likelihood ) ;
 }
 
+double BLCA_get_VB_bound( struct mix_mod *mixmod )
+{
+	
+	int k, g, j, c;
+	double Elogp = 0., Elogq = 0.;
+	struct component *comp;
+	
+	for( k=0; k<mixmod->n; k++ )
+	{
+		for( g=0; g<mixmod->G; g++ )
+		{
+			comp = mixmod->components[g] ;
+		
+			Elogp += mixmod->s[k][g] * ( mixmod->di_alpha_ud[g] - mixmod->sum_di_alpha_ud ) ;
+		
+			for( j=0; j<mixmod->d; j++ )
+			{
+				if( mixmod->varindicator[j] )
+				{
+					c = mixmod->Y[j][k] ;
+					Elogp += comp->di_beta_ud[j][c] - comp->sum_di_beta_ud[j] ;
+				}	
+			}
+			
+			if( mixmod->s[k][g] < 1E-10 )
+				Elogq += 0.;
+			else
+				Elogq += mixmod->s[k][g] * log( mixmod->s[k][g] );
+			
+		}
+	}
+	
+	double sum_j = 0;
+	
+	for( g=0; g<mixmod->G; g++ )
+	{
+		comp = mixmod->components[g];
+		
+		for( j=0; j<mixmod->d; j++ )
+		{
+			if( mixmod->varindicator[j] )
+			{
+				sum_j = 0.;
+				Elogp += lgamma( mixmod->ncat[j] * mixmod->beta ) - mixmod->ncat[j] * lgamma( mixmod->beta ) ;
+				for( c=0; c<mixmod->ncat[j]; c++ )
+				{
+					Elogp += ( mixmod->beta - 1. ) * ( comp->di_beta_ud[j][c] - comp->sum_di_beta_ud[j] ) ;
+					Elogq += -lgamma( comp->beta_ud[j][c] ) + ( comp->beta_ud[j][c] - 1. ) * ( comp->di_beta_ud[j][c] - comp->sum_di_beta_ud[j] ) ;
+					sum_j  += comp->beta_ud[j][c]; 
+				}
+				Elogq += lgamma( sum_j ) ;
+			}
+		}
+	}
+	
+	Elogp += lgamma( mixmod->G * mixmod->alpha ) - mixmod->G * lgamma( mixmod->alpha ) ; 
+	
+	double sum_g = 0.;
+	for( g=0; g<mixmod->G; g++ )
+	{
+		Elogp += ( mixmod->alpha - 1. ) * ( mixmod->di_alpha_ud[g] - mixmod->sum_di_alpha_ud ) ;
+		Elogq += - mixmod->alpha_ud[g] + ( mixmod->alpha_ud[g] - 1. ) * ( mixmod->di_alpha_ud[g] - mixmod->sum_di_alpha_ud  ) ;
+		sum_g += mixmod->alpha_ud[g] ;
+	}
+	Elogq += lgamma( sum_g ) ;
+	
+	return( Elogp - Elogq );
+}
