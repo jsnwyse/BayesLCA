@@ -32,11 +32,14 @@
 
 #include "atable.h"
 
+#include "BLCA_digamma_func.h"
+
 //definitions
 
 #define TRUE 1
 #define FALSE 0
 #define log_2_pi 1.83787706640934533908
+#define M_EULER   0.57721566490153286060651209008 /* Euler constant */
 #define RICHARDSON_AND_GREEN 0
 #define NOBILE_AND_FEARNSIDE 1
 

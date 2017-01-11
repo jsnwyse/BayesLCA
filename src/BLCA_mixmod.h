@@ -30,6 +30,8 @@ struct component
 	
 	double **prob_variables; /*matrix of variable probabilities*/
 	
+	double **beta_ud; /*dirichlet parameters for VB*/
+	
 	double log_prob; /*quantity that can be updated to save computations*/
 
 };
@@ -85,6 +87,8 @@ struct mix_mod
 								absorbing components*/
 	
 	double *weights; /*component weights if collapsed = FALSE*/
+	
+	double *alpha_ud; /*dirichlet parameters for the variational approximation*/
 	
 	int hprior_model; /*logical: sample a hyperprior on the probability of variable inclusion*/
 	

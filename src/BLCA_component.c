@@ -34,6 +34,14 @@ void BLCA_allocate_component(struct component *component,struct mix_mod *mixmod)
 		}
 	}
 	
+	if( mixmod->VB )
+	{
+		component->beta_ud = calloc( mixmod->d, sizeof(double *));
+		for(j=0;j<mixmod->d;j++){
+			component->beta_ud[j] = calloc(mixmod->ncat[j],sizeof(double));
+		}
+	}
+	
 	return;
 }
 
@@ -53,6 +61,14 @@ void BLCA_free_component(struct component *component,struct mix_mod *mixmod)
 			free(component->prob_variables[j]);
 		}
 		free(component->prob_variables);
+	}
+	
+	if( mixmod->VB )
+	{
+		for(j=0;j<mixmod->d;j++){
+			free(component->beta_ud[j]);
+		}	
+		free(component->beta_ud);
 	}
 	
 	return;
