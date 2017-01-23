@@ -1,12 +1,15 @@
 print.blca <-
 function(x, ...){
-z<-NULL
 
-btau<- x$classprob
-btheta<- x$itemprob
-btau.se<- x$classprob.sd
-btheta.se<- x$itemprob.sd
+if(x$binary){
 
+  z<-NULL
+  
+  btau<- x$classprob
+  btheta<- x$itemprob
+  btau.se<- x$classprob.sd
+  btheta.se<- x$itemprob.sd
+  
 names(btau)<- paste(rep("Group", length(btau)), 1:length(btau))
 
 if(is.matrix(btheta)) {
@@ -43,4 +46,5 @@ if(!is.null(btheta.se)){
 	print(round(z$se$MembershipProb, 3))
 } else warning("Posterior standard deviations not returned.", call.=FALSE)
 
+	}
 }

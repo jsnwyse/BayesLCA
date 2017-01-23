@@ -3,17 +3,17 @@ function(x, which=1L, main="", col1=heat.colors(12), ...){
 
 	logistore<- devAskNewPage()
 	devAskNewPage(TRUE)
-	
+	print(which)
 	show<- rep(FALSE, 10)
 	show[which]<-TRUE
-
+  print(show)
 	if(show[1]){
-	 Theta<- x$itemprob
+	 Theta<- x$itemprob.tidy
 	Tau<- x$classprob
 	
 	sel<- Tau<1e-6 
 	if(any(sel)){
-		warning("The following groups have neg`ligible membership probability, and will be omitted from the plotting device: ", "\n", 
+		warning("The following groups have negligible membership probability, and will be omitted from the plotting device: ", "\n", 
 		paste(rep("Group", sum(sel)), which(sel), collapse=","), ".")
 		Tau<- Tau[!sel]
 		Theta<- Theta[!sel,]
@@ -41,10 +41,10 @@ function(x, which=1L, main="", col1=heat.colors(12), ...){
 		G<- ncol(x$Z)
 		
 		if(N%%20 == 0) ind1<- N%/%20 else ind1<- N%/%20 + 1
-		o1<- order(x$count, decreasing=TRUE)
+		#o1<- order(x$count, decreasing=TRUE)
 		o2<- order(x$classprob, decreasing=TRUE)
 		
-		Z<- matrix( (x$count*x$Z)[o1, o2], N, G )
+		Z<- matrix( (x$Z)[, o2], N, G )
 		
 		for(ind2 in 1:ind1){
 		
@@ -58,7 +58,7 @@ function(x, which=1L, main="", col1=heat.colors(12), ...){
 		}
 		}#Show2 Classification Uncertainty
 		if(show[3]){
-	M<-dim(x$itemprob)[2]
+	M<-length(names(x$itemprob))
 	G<-dim(x$itemprob)[1]
 	
 	tau<- x$classprob
@@ -171,8 +171,6 @@ function(x, which=1L, main="", col1=heat.colors(12), ...){
 		for(g in 1:G) lines(xseq,  ymat[,g], lty=1, lwd=0.5, col=g+1)
 		
 		} #Show 6 VB ClassProb
-
-
 				if(show[7]){
 		
 		lbplot<- cbind(1:length(x$poststore), x$poststore)

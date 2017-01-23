@@ -142,7 +142,22 @@ function( X, G, alpha=1, beta=1, delta=1, num.categories=NULL, iter=500, restart
 	}
 	
 	x$itemprob <- var.probs.l	
-
+	
+	vec.itemprobs <- unlist(x$itemprob)
+	
+	itemprobs.group.ind <- rep(paste("Group", 1:G), times = sum(num.categories))
+	
+	itemprobs.var.ind <- rep(names(x$itemprob), times = G * num.categories)
+	
+	itemprobs.cat.ind <- paste("Cat", rep(as.numeric(unlist(apply(t(num.categories), 2, function(x) 0:(x-1)))), each = G))
+	
+	if(any(num.categories > 2)){
+	itemprob.tidy <- data.frame(itemprob = vec.itemprobs, group = itemprobs.group.ind, variable = itemprobs.var.ind, category = itemprobs.cat.ind)
+	} else { 
+	  itemprob.tidy <- matrix(vec.itemprobs[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = M, dimnames = list(paste("Group", 1:G), names(x$itemprob)))
+	  }
+	x$itemprob.tidy <- itemprob.tidy	
+	
 	x$poststore <- w$log.post[ 1:w$iters ]
 	x$logpost <- log.post.max
   
@@ -181,7 +196,7 @@ function( X, G, alpha=1, beta=1, delta=1, num.categories=NULL, iter=500, restart
 		#x$small<- small
 		#if((se==TRUE)&&(is.null(s.e.$classprob))) se<- FALSE
 		#x$sd<- x$se<- se
-		class(x)<-c("blca.em", "blca")
+	if(any(num.categories > 2)) class(x)<- c("blca.em", "blca.multicat","blca") else class(x)<-c("blca.em", "blca")
 
 		return(x)
 }
