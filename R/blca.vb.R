@@ -144,7 +144,23 @@ function( X, G, alpha=1, beta=1, delta=1, num.categories=NULL, model.indicator =
 	
 	x$itemprob <- var.probs.l	
 	x$itemprob.se <- se.var.probs.l
-
+	
+	vec.itemprobs <- unlist( x$itemprob )
+	
+	itemprobs.group.ind <- rep( paste("Group", 1:G), times = sum(num.categories) )
+	
+	itemprovs.var.ind <- rep( names(x$itemprob), times = G*num.categories )
+	
+	itemprobs.cat.ind <- paste("Cat", rep(as.numeric(unlist(apply(t(num.categories), 2, function(x) 0:(x-1)))), each = G))
+	
+	if(any(num.categories > 2)){
+		itemprob.tidy <- data.frame(itemprob = vec.itemprobs, group = 			itemprobs.group.ind, variable = itemprobs.var.ind, category = itemprobs.cat.ind)
+	} else { 
+	  	itemprob.tidy <- matrix(vec.itemprobs[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = M, dimnames = list(paste("Group", 1:G), names(x$itemprob)))
+	  }
+	
+	x$itemprob.tidy <- itemprob.tidy	
+	
 	x$lbstore <- w$lb[ 1:w$iters ]
 	x$lb <- lb.max
   
@@ -157,7 +173,7 @@ function( X, G, alpha=1, beta=1, delta=1, num.categories=NULL, model.indicator =
 	x$prior$beta<- beta
 	x$prior$delta<- delta
 
-	class(x)<-c("blca.vb", "blca")
+	if( any(num.categories>2) ) class(x)<-c("blca.vb", "blca.multicat" "blca") else class(x) <- c("blca.vb", "blca" )
 
 	return(x)
 }
