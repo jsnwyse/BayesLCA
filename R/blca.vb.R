@@ -1,203 +1,163 @@
 blca.vb <-
-function(X,G, alpha=1, beta=1, delta=1, start.vals= c("single","across"), counts.n=NULL, iter=500, restarts=1, verbose=TRUE, conv=1e-6, small=1e-100)
-{	
-	if(is.null(counts.n))
-	{
-		if(inherits(X,"data.blca")){
-			counts.n<- X$counts.n
-			X<- X$data
-		}else{
-			Xdat<- data.blca(X)
-			X<- Xdat$data
-			counts.n<- Xdat$counts.n
-			}# else class(X)
-		} else{ 
-			X<- as.matrix(X)
-			if(any(X[X>0]!=1))
-			stop("If vector of counts is supplied separately, then data must be binary.")
-			}
-	N<-nrow(X); M<-ncol(X)
-	if(2^M <= (M+1)*G) warning(paste("Model may be improperly specified. Maximum number of classes that should be fitted is", floor(2^M/(M+1)), "."))
-	if(length(delta)==1) delta<-rep(delta,G)
-	if(length(delta)!=G) stop("delta prior is wrong length (i.e., !=1 or G)")
+function( X, G, alpha=1, beta=1, delta=1, num.categories=NULL, model.indicator = NULL, iter=500, restarts=5, verbose=TRUE, conv=1e-6, small=1e-100 )
+{
+	
+	X <- as.matrix(X)
 
-	if(!is.matrix(alpha)){
-		if(any(length(alpha)==c(1,G)) ){
-			alpha<-matrix(alpha,G,M)
+	N<-nrow(X) 
+	M<-ncol(X) 
+	
+	if( is.null(model.indicator) )
+		model.indicator <- rep(1,M)
+	
+	#check that matrix is binary and/or n.categories is passed
+	if( is.null(num.categories) ){
+		if( !all( X[X>0]==1) ){
+			stop("\t A matrix other than binary must have non-null n.categories vector\n" )
 		} else {
-			if(length(alpha)==M){
-				alpha<- matrix(alpha,G,M, byrow=TRUE)
-				} else stop("Item probability prior improperly specified.")
-			}
-	} #else {
-	#	if(!is.matrix(alpha)) stop("Item probability prior improperly specified.")
-	#}	
-	
-	if(!is.matrix(beta)){
-		if(any(length(beta)==c(1,G)) ){
-			beta<-matrix(beta,G,M)
-			} else {
-				if(length(beta)==M){
-					beta<- matrix(beta,G,M, byrow=TRUE)
-				} else stop("Item probability prior improperly specified.")
-			}
-		} #else {
-			#if(!is.matrix(beta)) stop("Item probability prior improperly specified.")
-	#}	
-	if(any(dim(alpha)!=c(G,M), dim(beta)!=c(G,M))) stop("Item probability prior improperly specified.")
+			#matrix is binary
+			num.categories <- rep( 2, M )
+		}
+	}
 
-	
-	conv<-N*M*conv
-	eps<-N*M
+	t <- apply( X, 2, min )
+	if( sum(t) > 0 ) stop("\t please recode categories from 0, ..., ncat-1  to use blca.em\n")
+	t <- apply( X, 2, max )
+	if( sum( t + 1 - num.categories ) > 0 ) stop("\n number of categories in X exceeds num.categories please recode categories from 0, ..., ncat-1\n")
+		
 
-	counter<-0
-	llstore<-0
-	llcheck<- -Inf
+	## safety checks ##
+	
+	if(length(num.categories)!= M){
+		stop("\t The length of num.categories must be the same as the number of records per observation\n")
+	}	
+	
+	if( length(alpha) > 1 ) stop("\t alpha value must be a positive scalar \n")
+	if( length(beta) > 1 ) stop("\t beta value must be a positive scalar \n")
+	if( length(delta) > 1 ) stop("\t delta value must be a positive scalar \n")
+
+	if(2^M <= (M+1)*G) warning(paste("Model may be improperly specified. Maximum number of classes that should be run is", floor(2^M/(M+1)), "."))
 
 	if(is.numeric(restarts)){
 	  if(length(restarts)>1){
 	    restarts<- restarts[1]
 	    warning("restarts improperly specified - first value will be used, other values will be ignored")
-	    } #else {stop("restarts improperly specified. Must be an integer of length 1.")}
+	    }# else {stop("restarts improperly specified. Must be an integer of length 1.")}
 	} else {stop("restarts improperly specified. Must be an integer of length 1.")}
-
-	multistart.lp.store<- rep(0, restarts)
-
-	for(r in 1:restarts){
 	
-	#Set Parameters
-	if(is.character(start.vals)){
-	  if(start.vals[1]=="single"){
-	    Z<-unMAP(sample(1:G,size=N,replace=TRUE))
-	    if(ncol(Z)<G) Z<-cbind(Z, matrix(0,nrow=N, ncol=(G-ncol(Z))))
-	  }else{
-	    if(start.vals[1]=="across"){
-	      Z<- matrix(runif(N*G), N,G)
-	      Z<- Z/rowSums(Z)
-	      } else stop("start.vals improperly specified. See help files for more details.")
-	    }
-	 } else{
-	      if(is.matrix(start.vals) & all(dim(as.matrix(start.vals)) == c(N,G)))  Z<- start.vals else{
-		  if(is.numeric(start.vals) & length(as.numeric(start.vals))==N){ 
-		    Z<- unMAP(start.vals)
-		    } else stop("start.vals improperly specified. See help files for more details.")
-		 }
-	  }
-	
-	while(abs(eps)>conv || counter< 20)
-	{
-		gamma<-colSums(Z*counts.n) + delta
-		
-		zeta1<- (t(Z)%*%(X*counts.n) + alpha)
-		zeta2<- (t(Z)%*%((1-X)*counts.n) + beta)
-				
-		Elog.gamma<-digamma(gamma) - digamma(sum(gamma))
-		
-		Elog.zeta1<-digamma(zeta1)-digamma(zeta1 + zeta2)
-		
-		Elog.zeta2<-digamma(zeta2)-digamma(zeta1 + zeta2)
-		
-		Z<- t(exp(Elog.gamma+ t(X%*%t(Elog.zeta1) + (1-X)%*%t(Elog.zeta2))))
-		
-		Z<-Z+ small
-		
-		Z<- Z/rowSums(Z)
-		
-		l1<- sum(Z*(counts.n*(X%*%t(Elog.zeta1)) + counts.n*((1-X)%*%t(Elog.zeta2))))
-		
-		l2<- sum(t(counts.n*Z)*(Elog.gamma))
-		
-		l3<- sum((delta - 1)*Elog.gamma)+lgamma(sum(delta))-sum(lgamma(delta))
-		
-		l4<- sum((alpha-1)*Elog.zeta1 +(beta-1)*Elog.zeta2)+sum(lgamma(alpha+beta))-sum(lgamma(alpha+beta))
-		
-		l5<- sum(zeta1*Elog.zeta1 + zeta2*Elog.zeta2)+sum(lgamma(zeta1+zeta2+2))-sum(lgamma(zeta1+1),lgamma(zeta2+1))
-	
-		l6<- sum(gamma*Elog.gamma)+lgamma(sum(gamma+1))-sum(lgamma(gamma+1))
-		
-		l7<- sum(xlogy(counts.n*Z,counts.n*Z))
-		
-		lnew<- l1+l2+l3+l4-l5-l6-l7
-		
-		llstore[counter]<-lnew
-		ll<-lnew
+	#storage 
+	weights <- numeric(G)
+	sd.weights <- numeric(G)
+	variable.probs <- numeric(G*sum(num.categories))
+	sd.variable.probs <- numeric(G*sum(num.categories))
+	group.probs <- numeric(N*G)
+	lb <- numeric( iter )	
+	iters <- 0
+	converged <- 0
+	logpost <- 0
 
-		if(counter>2)
+	hparam <- c( delta, beta )
+	
+	lb.max <- -Inf
+	w.max <- list()
+	
+	for( r in 1:restarts )
+	{	
+		# call the VB algorithm
+		
+		w <- .C( 		"BLCA_VB_FIT", 										as.integer(X), 			
+							as.integer(N),											as.integer(M), 
+							as.integer(num.categories),	 					as.double(hparam),
+							as.integer(G),											as.integer(iter),
+							iters = as.integer(iter),							group.probs = as.double(group.probs),
+							weights = as.double(weights),						se.weights = as.double( sd.weights ),
+							variable.probs = as.double(variable.probs),	se.variable.probs = as.double( sd.variable.probs ),
+							as.integer(model.indicator),						lb = as.double(lb),
+							as.double(conv),										converged = as.integer(converged),
+							logpost = as.double(logpost),
+							PACKAGE = "BayesLCA" )
+	
+		lb.this <- w$lb[ w$iters ]
+		
+		#store the run that gives the highest value  of the log posterior
+		#	for the runs that have converged
+		new.max <- FALSE
+		if( lb.this > lb.max && w$converged == TRUE )
 		{
-			ll.inf<-(llstore[counter-1] - llstore[counter-2])/(llstore[counter] - llstore[counter-1])*(llstore[counter] - llstore[counter-2]) + llstore[counter-1]
-			
-			if(llstore[counter] == llstore[counter-1]){ ll.inf<- llstore[counter]}
-			
-			eps<- ll.inf - llstore[counter]
+			w.max <- w 
+			lb.max <- lb.this
+			new.max <- TRUE
+		}
+		
+		if( verbose ) 
+		{
+			if( new.max && r>1 )
+			{
+				cat( "\nNew maximum found... Restart number ",r,", logpost = ", round(w$logpost,2),"...", sep = "" )
+			}else{ 
+				cat( "\nRestart number ",r,", logpost = ", round(w$logpost,2),"...", sep = "" )
 			}
-		
-		counter<-counter+1
+		}
 	
-		if(counter==iter) {print("Maximum iteration reached."); break}
-
-		}#while eps>conv
-
-		if(ll > llcheck){
-		if(r>1 & verbose==TRUE)  cat("New maximum found... ")
-		  rstore<- list(gamma=gamma, zeta1=zeta1, zeta2=zeta2, Z=Z, l=ll, llstore=llstore, counter=counter, eps=eps)
-		  
-		  llcheck<- ll
-		  }
-		
-		if(verbose==TRUE){ cat(paste("Restart number ", r, ", logpost = ", round(ll, 2), "... \n", sep=""))}
-		multistart.lp.store[r]<- ll
-		
-		eps<-N*M  ## Very important to reset these!!!
-		counter<-0
-		llstore<-0
-		if(r==1 & (is.matrix(start.vals) | is.numeric(start.vals)))  start.vals<- "single"
-		}#r
-	ll<- llcheck
-	o<- order(rstore$gamma, decreasing=TRUE)
-	gamma<- rstore$gamma[o]
-	zeta1<- rstore$zeta1[o,]
-	zeta2<- rstore$zeta2[o,]
-	Z<- rstore$Z[,o]
-	ll<- rstore$l
-	llstore<- rstore$llstore
-	counter<- rstore$counter
-	eps<- rstore$eps
- 
-	x<-NULL
-	x$call<- match.call()
-	x$itemprob<- (zeta1 - 1)/(zeta1+zeta2 - 2)
-	x$itemprob[x$itemprob<0]<- 0
-	x$classprob<- (gamma-1)/(sum(gamma)-G)
+	}	
+	cat("\n")
 	
-	if(any(x$classprob<0)){
-	x$classprob[x$classprob<0]<- 0
-	x$classprob<- x$classprob/sum(x$classprob)
+	x <- list()
+	x$call <- match.call()
+	
+	x$converged <- w$converged
+	x$itersconv <- w$iters
+	
+	x$classprob <- w.max$weights
+	x$classprob.se <- w.max$se.weights
+	x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G )
+	colnames(x$Z) <- paste( "Group", 1:G )
+	
+	var.probs.l <- list()
+	se.var.probs.l <- list()
+	
+	l <- 1
+	for( j in 1:M )
+	{
+		if(j == 1){
+			gap <- 0
+		}else{
+			gap <- G * sum( num.categories[1:(j-1)] )
+		}
+		#variable probabilities stacked by group and then iteration
+		if( model.indicator[j] )
+		{
+			var.probs.l[[l]] <- matrix( w$variable.probs[(gap+1):(gap + G*num.categories[j])] , nrow =  G, ncol=num.categories[j], byrow=TRUE )
+			se.var.probs.l[[l]] <- matrix( w$se.variable.probs[(gap+1):(gap + G*num.categories[j])] , nrow =  G, ncol=num.categories[j], byrow=TRUE )
+			rownames( var.probs.l[[l]] ) <- rownames( se.var.probs.l[[l]] ) <-  paste( "Group", 1:G )
+			colnames( var.probs.l[[l]] ) <- rownames( se.var.probs.l[[l]] ) <-  paste("Cat",0:(num.categories[j]-1) )
+			l <- l+1
+		}
 	}
 	
-	x$itemprob.sd<- x$itemprob.se<- sqrt((zeta1*zeta2)/((zeta1+zeta2)^2*(zeta1+zeta2+1)) )
-	x$classprob.sd<- x$classprob.se<- sqrt( (gamma*(sum(gamma)-gamma))/(sum(gamma)^2*(sum(gamma)+1)))
-	
-	x$parameters$itemprob<-array(cbind(zeta1, zeta2), dim=c(G,M,2))
-	x$parameters$classprob<-gamma
-	
-	x$Z<- Z
-	rownames(x$Z)<- names(counts.n)
-	colnames(x$Z)<- paste("Group", 1:G)
-	x$LB<-ll 
-	if(!is.null(colnames(X))){
-		colnames(x$itemprob) <- colnames(x$itemprob.se) <-  colnames(X)
-		dimnames(x$parameters$itemprob)<- list(NULL, colnames(X), NULL) 
+	if( is.null(colnames(X)) )
+	{
+		names( var.probs.l ) <- names( se.var.probs.l ) <- paste("Variable", which( model.indicator==1 ) )
+	}else{
+		names( var.probs.l ) <- names( se.var.probs.l ) <- colnames(X)[  which( model.indicator == 1 ) ]
 	}
-		
-	x$lbstore<-llstore
-	x$iter<-counter
-	x$eps<-eps
-	x$counts<- counts.n
+	
+	x$itemprob <- var.probs.l	
+	x$itemprob.se <- se.var.probs.l
+
+	x$lbstore <- w$lb[ 1:w$iters ]
+	x$lb <- lb.max
+  
+	#x$BIC<- 2*likl-(G*M + G-1)*log(N1)
+	#x$AIC<- 2*likl - 2*(G*M + G-1)
+	#x$iter<- length(rstore$llstore)
+	
 	x$prior<-NULL
-	x$prior$alpha<- alpha[o,]
-	x$prior$beta<- beta[o, ]
-	x$prior$delta<- delta[o]
+	x$prior$alpha<- alpha
+	x$prior$beta<- beta
+	x$prior$delta<- delta
+
 	class(x)<-c("blca.vb", "blca")
-	x
-		
-	}
+
+	return(x)
+}
