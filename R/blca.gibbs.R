@@ -31,9 +31,21 @@ blca.gibbs <- function( X , G, alpha = 1, beta = 1, delta = 1, num.categories = 
 		stop("\t The length of num.categories must be the same as the number of records per observation\n")
 	}	
 
-	if( length(alpha) > 1 ) stop("\t alpha value must be a positive scalar \n")
-	if( length(beta) > 1 ) stop("\t beta value must be a positive scalar \n")
-	if( length(delta) > 1 ) stop("\t delta value must be a positive scalar \n")
+	if( length(alpha) > 1 ) 
+	{
+		warning("\t alpha value must be a positive scalar; only first entry will be used \n")
+		alpha <- alpha[1]
+	}
+	if( length(beta) > 1 ) 
+	{
+		warning("\t beta value must be a positive scalar; only first entry will be used \n")
+		beta <- beta[1]
+	}
+	if( length(delta) > 1 ) 
+	{
+		warning("\t delta value must be a positive scalar; only first entry will be used \n")
+		delta <- delta[1]
+	}
 
 	#if(iter < burn.in){
 	#	warning("\t The number of burn in iterations is greater than the number of iterations-- this will be automatically adjusted to the functions parameters.")
