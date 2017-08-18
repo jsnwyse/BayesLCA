@@ -3,9 +3,13 @@ plot.blca.multicat <-
     logistore<- devAskNewPage()
     devAskNewPage(TRUE)
     
+    if( any(which>2) ){
+    	warning("\n Plotting for more than two categories: item probability and classification uncertainty plot only.")
+    } 
+    
     show<- rep(FALSE, 11)
     show[which]<-TRUE
-    print(show)
+    #print(show)
 if(show[1]){
   
   #by1 <- "variable"
@@ -49,7 +53,7 @@ if(show[1]){
       #ycut<-0:C1
       
       #image.plot(ycut, xcut, t(temp1), axes=FALSE, zlim=c(0,1), ylab="Groups", xlab="Categories", main=main, col=col1)
-      mosaicplot(temp1, color = 1:nlev.temp + 1, ylab="Groups", xlab="Categories", main = main)
+      mosaicplot(temp1, color = 1:nlev.temp + 1, ylab="Categories", xlab="Groups", main = main)
       
       mtext(lev.var [m1], 3, 0.25)
     }

@@ -8,10 +8,10 @@ plot.blca.collapsed <-
       warning("Item probabilities not calculated. Use ?blca.collapsed.post.hoc.estimates for more information.")
       show[1]<- FALSE 
     }
-    if(show[1] & (!x$fixed.G | x$variable.selection)) warning("Optimal model only is visualised for which = 1.")
-    if(show[2] & (!x$fixed.G)) warning("Optimal model only is visualised for which = 2.")
+    if(show[1] & ( x$G.sel | x$var.sel)) warning("Optimal model only is visualised for which = 1.")
+    if(show[2] & (!x$G.sel)) warning("Optimal model only is visualised for which = 2.")
     if(show[2]){ 
-      x$Z <- x$Z[[which.max(table(x$samples$Giter))]]
+      x$Z <- x$Z[[which.max(table(x$samples$G))]]
       x$count <- rep(1, nrow(x$Z))
       if(is.null(x$classprob)) x$classprob <- colMeans(x$Z)
       }

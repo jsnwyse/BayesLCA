@@ -10,18 +10,16 @@
 #		Dublin 2, Ireland.
 #
 #	Last update:
-#		Fri 24 Feb 2017 21:42:08 GMT  
+#		Sat 16 May 2015 03:16:50 PM IST 
 #=========================================================
 
 
-undo.label.switching <- function( Z, Gsamp = NULL )
+undo.label.switching.old <- function( Z, ngroups = NULL )
 #undo label switching using Nobile and Fearnside approach
 {
 
 	# Z is a matrix of labels with row i indexing classifications
   	# to groups from 1 : ngroups[i] or 1:ngroups if ngroups is an integer 
-  	
-  	ngroups <- Gsamp
   	
   	if( is.null(ngroups) ) stop("\t argument ngroups must be specified as either a fixed number of groups or a vector of the number of groups corresponding to each row of Z")
     
@@ -42,12 +40,9 @@ undo.label.switching <- function( Z, Gsamp = NULL )
     ret$ncomponents <- numeric(length(G))
     ret$item.tags <- list()
     
-    groups.not.done <- NULL
-    
     j <- 1
     
-    for(k in G)
-    {
+    for(k in G){
       
       idx.k <- which(ngroups == k)
       labels.k <- Z[idx.k,]
@@ -57,11 +52,10 @@ undo.label.switching <- function( Z, Gsamp = NULL )
       
       permutation <- numeric(nsamp.k*k)
       
-      if( length(idx.k) == 1 ) groups.not.done <- c( groups.not.done, k )
 
-      if((k!=1) && (length(idx.k) > 1))
+      if( (k!=1) && (length(idx.k) > 1))
       {
-      
+        
         nonempty.k <- apply( labels.k, 1, function(x) length(unique(x)) )
         t.k <- sort( nonempty.k, index.return=TRUE )
         
@@ -71,30 +65,30 @@ undo.label.switching <- function( Z, Gsamp = NULL )
         
         labels.out.k <- numeric(nsamp.k*nobs)
         
-        w <- .C(	"BLCA_RELABEL",								as.integer(nobs),
+        w <- .C(	"BLCA_RELABEL",						as.integer(nobs),
         				as.integer(nsamp.k),					as.integer(ngrp.k),
         				as.integer(labels.arranged.k),	x=as.integer(labels.out.k),
         			   xx = as.integer(permutation),		PACKAGE = "BayesLCA" )
         
-        ret$ncomponents[j] <- k
-        ret$memberships[[j]] <- matrix(w$x,nrow = nsamp.k,ncol=nobs,byrow=FALSE)
-        ret$permutation[[j]] <- matrix(w$xx,nrow=nsamp.k,ncol=k,byrow=FALSE)
+        ret$ncomponents[j] = k
+        ret$memberships[[j]] = matrix(w$x,nrow = nsamp.k,ncol=nobs,byrow=FALSE)
+        ret$permutation[[j]] = matrix(w$xx,nrow=nsamp.k,ncol=k,byrow=FALSE)
         
         #compute membership probabilities for each data pt
         
-        probs <- matrix( nrow = nobs, ncol=k)
+        probs = matrix( nrow = nobs, ncol=k)
         for(id in 1:nobs){
         	for(c in 1:k){
-        		probs[id,c] <- length(which(ret$memberships[[j]][,id] == c))
+        		probs[id,c] = length(which(ret$memberships[[j]][,id] == c))
         	}
         }
         
-        probs <- probs/nsamp.k
+        probs = probs/nsamp.k
         
-        ret$membership.probabilities[[j]] <- probs
+        ret$membership.probabilities[[j]] = probs
  
         #for variable indicator
-		ret$item.tags[[j]] <- item.tags.k  
+		ret$item.tags[[j]] = item.tags.k  
 		
 		#store in the new Z matrix Zrelab
 		
@@ -104,12 +98,11 @@ undo.label.switching <- function( Z, Gsamp = NULL )
         
       }else{
         
-        ret$ncomponents[j] <- k
-        ret$memberships[[j]] <- labels.k
-        ret$membership.probabilities[[j]] <- matrix( 0 , nrow=nobs, ncol=k )
-        for( id in 1:nobs ) ret$membership.probabilities[[j]][ id, labels.k[id] ] <- 1
-        idx.k <- which(ngroups == k)
-        ret$item.tags[[j]] <- idx.k #only in this case
+        ret$ncomponents[j] = k
+        ret$memberships[[j]] = labels.k
+        
+        idx.k = which(ngroups == k)
+        ret$item.tags[[j]] = idx.k #only in this case
         
       }
       
@@ -117,26 +110,15 @@ undo.label.switching <- function( Z, Gsamp = NULL )
       
     }
     
-    
-    ord <- sort( ret$ncomponents, index.return=TRUE )$ix
-    
-    membprob <- list()
-    
-   for( k in 1:length(ord) ) membprob[[k]] <- ret$membership.probabilities[[ ord[k] ]]
-    
-    names( membprob ) <- paste0("G=", sort(ret$ncomponents) ) 
-    
     x <- list()
     
     x$call <- match.call()
     
     x$relab <- Zrelab
     
-    x$numcomponents <- sort( ret$ncomponents )
+    x$components <- ret$ncomponents
     
-    x$components <- sort( ret$ncomponents )
-    
-    x$label.probs <- membprob
+    x$label.prob <- ret$membership.probabilities
     
     x$permutation <- Perm
     

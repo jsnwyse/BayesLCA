@@ -1,22 +1,31 @@
 plot.blca <-
 function(x, which=1L, main="", col1=heat.colors(12), ...){
 
+	# these plotting options were mainly written for the dichotomous case- 
+	#   changes have been made to make these backwards compatible
+
 	logistore<- devAskNewPage()
 	devAskNewPage(TRUE)
-	print(which)
-	show<- rep(FALSE, 10)
+	#print(which)
+	show<- rep(FALSE, 11)
 	show[which]<-TRUE
-  print(show)
+  #print(show)
+  if( any(show) )
+  {
 	if(show[1]){
-	 Theta<- x$itemprob.tidy
+	 Theta<- x$itemprob
 	Tau<- x$classprob
 	
+	# this is causing a crash for G.sel=TRUE and the posthoc run
+	if( FALSE )
+	{
 	sel<- Tau<1e-6 
 	if(any(sel)){
 		warning("The following groups have negligible membership probability, and will be omitted from the plotting device: ", "\n", 
 		paste(rep("Group", sum(sel)), which(sel), collapse=","), ".")
 		Tau<- Tau[!sel]
 		Theta<- Theta[!sel,]
+	}
 	}
 
 	M<- ncol(Theta)
@@ -58,20 +67,21 @@ function(x, which=1L, main="", col1=heat.colors(12), ...){
 		}
 		}#Show2 Classification Uncertainty
 		if(show[3]){
-	M<-length(names(x$itemprob))
-	G<-dim(x$itemprob)[1]
+		
+	M<-dim( x$itemprob )[2]
+	G<-dim( x$itemprob )[1]
 	
 	tau<- x$classprob
 		 
-	if(is.null(dimnames(x$itemprob)[2])){
-		caption<-paste(rep("Column",M), 1:M)
+	if(is.null(dimnames( x$itemprob )[2])){
+		caption <- paste(rep("Column",M), 1:M)
 		 }
-	else caption<- dimnames(x$itemprob)[2][[1]]
+	else caption <- dimnames( x$itemprob )[2]
 	
 	for(m in 1:M){
 		
 		r<- range(x$samples$itemprob[,,m])
-		denmaty<-denmatx<- matrix(0,512, G)
+		denmaty<- denmatx<- matrix(0,512, G)
 		
 		for(g in 1:G){
 			dentoy<- density(x$samples$itemprob[, g, m], from=r[1], to=r[2])
@@ -109,9 +119,15 @@ function(x, which=1L, main="", col1=heat.colors(12), ...){
 		mtext("Condit. Membership", 3, 0.25)
 		for(g in 1:G) 	lines(denmatx[, g], denmaty[, g], col=g+1, lty=2, lwd=1)		
 		}#Show4 classprob Gibbs, Boot
-			if(show[5]){
-	M<-dim(x$parameters$itemprob)[2]
-	G<-dim(x$parameters$itemprob)[1]
+		
+		
+			if(show[5]){ # resolved to work with new return from inferences
+			
+	if( any( x$call$ncat > 2 ) ) stop("\n Cannot use this plot for vb results when greater than two categories.")
+			
+	M<-dim(x$itemprob)[2]
+	
+	G<-dim(x$itemprob)[1]
 	
 	xseq<-seq(0,1,length.out=1000)
 	
@@ -122,17 +138,15 @@ function(x, which=1L, main="", col1=heat.colors(12), ...){
 	
 	for(m in 1:M){
 		
-		var1<- x$parameters$itemprob[,m,1]*x$parameters$itemprob[, m, 2]/((x$parameters$itemprob[,m,1]+x$parameters$itemprob[, m, 2])^2*(x$parameters$itemprob[, m, 1]+x$parameters$itemprob[, m, 2] + 1))
-		
-		r1<- max(min(x$itemprob[,m] - 4*sqrt(var1)),0)
-		r2<- min(max(x$itemprob[,m] + 4*sqrt(var1)),1)
+		r1<- max(min(x$itemprob[,m] - 4*( x$itemprob.sd[,m] )),0)
+		r2<- min(max(x$itemprob[,m] + 4*( x$itemprob.sd[,m] )),1)
 		
 		xseq<-seq(r1,r2,length.out=1000)
 		ymax<-0
 		
 		mden<- x$classprob[1]*dbeta(xseq, x$parameters$itemprob[1, m, 1], x$parameters$itemprob[1, m, 2] )
 			
-		for(g in 2:G) mden<- mden + x$classprob[g]*dbeta(xseq, x$parameters$itemprob[g,m,1], x$parameters$itemprob[g,m,2] )
+		for(g in 2:G) mden<- mden + x$classprob[g]*dbeta(xseq, x$parameters$itemprob[g, m, 1], x$parameters$itemprob[g, m, 2] )
 		
 		plot.mat<- cbind(xseq, mden)
 		
@@ -209,16 +223,18 @@ function(x, which=1L, main="", col1=heat.colors(12), ...){
 	  plot(x$samples$logpost,  type='l', main=main, sub="MCMC Chain", ylab="Log-Posterior", xlab="Iteration", ...)
 	  mtext("Log-posterior", 3, 0.25)
 	  
-	  if(x$fixed.G == FALSE){ 
-	    plot(x$samples$Giter,  type='l', main=main, sub="MCMC Chain", ylab="Number of Groups", xlab="Iteration", ...)
+	  if( !x$G.sel ){ 
+	    plot(x$samples$G,  type='l', main=main, sub="MCMC Chain", ylab="Number of Groups", xlab="Iteration", ...)
 	    mtext("Number of Groups", 3, 0.25)
 	  }
-	  if(x$variable.selection == TRUE){ 
+	  if( x$var.sel ){ 
 	    plot(rowSums(x$samples$var.ind), type='l', main=main, sub="MCMC Chain", ylab="Number of Variables Included", xlab="Iteration", ...)
 	    mtext( "Number of Variables Included", 3, 0.25)
 	    }
 	  
 	} ##Show 10, collapsed diagnostic
 
+	}
+	
 	devAskNewPage(logistore)
 }

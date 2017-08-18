@@ -1,4 +1,4 @@
-blca.gibbs <-
+blca.gibbs.2 <-
 function(X,G, alpha=1, beta=1, delta=1, start.vals= c("prior","single","across"), counts.n=NULL, iter=5000, thin=1, accept=thin, burn.in=100, relabel=TRUE, verbose=TRUE, verbose.update=1000)
 {
 	if(is.null(counts.n))

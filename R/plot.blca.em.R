@@ -1,8 +1,7 @@
 plot.blca.em <-
 function(x, which=1L, main="", ...){
   #class(x)<- "blca"
-  #print("NextMethodUsed")
-  
+  #print("NextMethodUsed") 
   print(which)
   show<- rep(FALSE, 5)
   show[which]<- TRUE

@@ -1,6 +1,6 @@
 summary.blca.boot <-
 function(object, ...){
-	sum1<- c(nrow(object$samples$classprob), object$logpost, object$AIC, object$BIC)
+	sum1<- c( object$B, object$logpost, object$AIC, object$BIC)
 	names(sum1)<- c("IterNumber", "Log-Posterior", "AIC", "BIC")
 	
 	object$method<- "Bootstrap"

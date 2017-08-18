@@ -1,5 +1,5 @@
 blca <-
-function(X, G, method=c("em", "gibbs", "boot", "vb", "collapsed"),...){
+function(X, G, ncat=NULL, method=c("em", "gibbs", "boot", "vb", "collapsed"),...){
 	# if(length(method)>1){
 		# method<- method[1]
 		# warning(paste("More than one method specified", method, "method used only."))
