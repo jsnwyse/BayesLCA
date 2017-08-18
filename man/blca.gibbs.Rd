@@ -8,19 +8,22 @@ Bayesian Latent Class Analysis via Gibbs Sampling
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X. blca.gibbs performs Gibbs sampling to sample from the parameters' true distribution.
 }
 \usage{
-blca.gibbs(X, G, alpha = 1, beta = 1, delta = 1, 
-	   start.vals = c("prior", "single", "across"), 
-	   counts.n = NULL, iter = 5000, thin = 1, 
-	   accept=thin, burn.in = 100, relabel = TRUE, 
-           verbose = TRUE, verbose.update = 1000)
+blca.gibbs( X, G, ncat=NULL,  alpha=1, beta=1, delta=1,
+ start.vals=c("prior","single","across"), counts.n=NULL,
+  model.indicator=NULL, iter=5000, burn.in=100, thin=1,
+  accept=thin, relabel=TRUE, verbose=TRUE, verbose.update=1000 ) 
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
    \item{X}{
 The data matrix. This may take one of several forms, see \code{\link{data.blca}}.
 }
+
   \item{G}{
 The number of classes to run lca for.
+}
+\item{ncat}{
+	The number of categories in each variable (column).
 }
 
   \item{alpha, beta}{
@@ -29,12 +32,16 @@ The prior values for the data conditional on group membership. These may take se
   \item{delta}{
 Prior values for the mixture components in model.  Defaults to 1, i.e., a uniform prior.  May be single or vector valued (of length G).
 }
-
  \item{start.vals}{
 Denotes how class membership is to be assigned during the initial step of the algorithm. One of three character values may be chosen: "prior", which samples parameter values from prior distributions, "single", which randomly assigns data points exclusively to one class, or "across", which assigns class membership via  \code{\link{runif}}. Alternatively, class membership may be pre-specified, either as a vector of class membership, or as a matrix of probabilities. Defaults to "single".
 }
+
 \item{counts.n}{
 If data patterns have already been counted, a data matrix consisting of each unique data pattern can be supplied to the function, in addition to a vector counts.n, which supplies the corresponding number of times each pattern occurs in the data. 
+}
+
+\item{model.indicator}{
+Binary vector of length the number of columns of X giving the variables to include when fitting the LCA model (a 1 means include).
 }
   \item{iter}{
 The number of iterations to run the gibbs sampler for \bold{after} burn-in.
@@ -70,21 +77,24 @@ The library coda provide extensive tools to diagnose and visualise MCMC chains. 
 A list of class "blca.gibbs" is returned, containing:
 \item{call}{The initial call passed to the function.}
 \item{classprob}{The class probabilities.}
-\item{itemprob}{The item probabilities, conditional on class membership.}
+\item{itemprob}{The item probabilities, conditional on class membership. Either a matrix or a list dependending on whether there are only dichotomous variables or a mix of di and polychotomous variables.}
 \item{classprob.sd}{Posterior standard deviation estimates of the class probabilities.}
 \item{itemprob.sd}{Posterior standard deviation estimates of the item probabilities.}
-\item{logpost}{The log-posterior of the estimated model.}
+\item{logpost}{The log-posterior of the estimated model. Either a matrix or a list dependending on whether there are only dichotomous variables or a mix of di and polychotomous variables.}
 \item{Z}{Estimate of class membership for each unique datapoint.}
 \item{samples}{A list containing Gibbs samples of the item and class probabilities and log-posterior.}
 \item{DIC}{The Deviance Information Criterion for the estimated model.}
 \item{BICM}{The Bayesian Information Criterion (Monte Carlo) for the estimated model.}
 \item{AICM}{Akaike's Information Criterion (Monte Carlo) for the estimated model.}
-\item{counts}{ The number of times each unique datapoint point occured.}
-\item{prior}{A list containing the prior values specified for the model.}
+\item{model.indicator}{Binary vector indicating the variables which were included for clustering.}
 \item{thin}{The acceptance rate for samples from the distribution.}
 \item{burn.in}{The number of iterations the gibbs sampler was run before beginning to store values.}
 \item{relabel}{Logical, indicating whether a mechanism to prevent label-switching was used.}
+\item{prior}{A list containing the prior values specified for the model.}
+\item{ncat}{The ncat vector from the call.}
 \item{labelstore}{The stored labels during the sampling run. If relabel=TRUE, these show how labels were permuted in an attempt to avoid label-switching in the model.}
+\item{labelstore.permutation}{If \code{relabel==TRUE} then this is the label permutation used in the post processing of labels.}
+\item{G.Z}{If \code{relabel==TRUE} this gives the number of components that were relabelled.}
 }
 \references{
 Spiegelhalter DJ, Best NG, Carlin BP, Linde Avd (2002). ``Bayesian Measures of Model Complexity and Fit.'' Journal of the Royal Statistical Society. Series B (Statistical Methodology), 

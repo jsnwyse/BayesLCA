@@ -8,10 +8,11 @@ Bayesian Latent Class Analysis via an EM Algorithm and Using Empirical Bootstrap
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X.  blca.boot repeatedly samples from X with replacement then utilises an EM algorithm to find maximum posterior (MAP) and standard error estimates of the parameters.
 }
 \usage{
-blca.boot(X, G, alpha = 1, beta = 1, delta = rep(1, G), 
-	  start.vals = c("single", "across"), counts.n = NULL, 
-	  fit = NULL, iter = 50, B = 100, relabel = FALSE, 
-          verbose = TRUE, verbose.update = 10, small = 1e-100)
+blca.boot(X, G, ncat=NULL, alpha=1,beta=1, delta=1, 
+				start.vals= c("single","across"), counts.n=NULL, 
+				model.indicator=NULL, fit=NULL, iter=50,  B=100, 
+				relabel=FALSE, verbose=TRUE, verbose.update=10, 		
+				small=1e-100, MAP=TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -20,6 +21,9 @@ The data matrix. This may take one of several forms, see \code{\link{data.blca}}
 }
   \item{G}{
 The number of classes to run lca for.
+}
+\item{ncat}{
+	The number of categories in each variable (column).
 }
   \item{alpha, beta}{
 The prior values for the data conditional on group membership. These may take several forms: a single value, recycled across all groups and columns, a vector of length G or M (the number of columns in the data), or finally, a \eqn{G \times M} matrix specifying each prior value separately. Defaults to 1, i.e, a uniform prior, for each value.
@@ -32,6 +36,9 @@ Denotes how class membership is to be assigned during the initial step of the al
 }
 \item{counts.n}{
 If data patterns have already been counted, a data matrix consisting of each unique data pattern can be supplied to the function, in addition to a vector counts.n, which supplies the corresponding number of times each pattern occurs in the data. 
+}
+\item{model.indicator}{
+Binary vector of length the number of columns of X giving the variables to include when fitting the LCA model (a 1 means include).
 }
  \item{fit}{
 Previously fitted models may be supplied in order to approximate standard error and unbiased point estimates. fit should be an object of class "blca.em". Defaults to NULL if no object is supplied.
@@ -54,6 +61,9 @@ If \code{verbose=TRUE}, \code{verbose.update} determines the periodicity with wh
   \item{small}{
 To ensure numerical stability a small constant is added to certain parameter estimates. Defaults to 1e-100.
 }
+\item{MAP}{
+Logical indicating whether priors should be included in the analysis or not.
+}
 }
 \details{
 Bootstrapping methods can be used to estimate properties of a distribution's parameters, such as the standard error estimates, by constructing multiple resamples of an observed dataset, obtained by sampling with replacement from said dataset.  The multiple parameter estimates obtained from these resamples may then be analysed.  This method is implemented in blca.boot by first running blca.em over the full data set and then using the returned values of the item and class probabilities as the initial values when running the algorithm for each bootstrapped sample.  Alternatively, initial parameter estimates may be specified using the fit argument.
@@ -68,19 +78,23 @@ Note that if a previously fitted model is supplied, then the prior values with w
 %% ...
 A list of class "blca.boot" is returned, containing:
 \item{call}{The initial call passed to the function.}
-\item{itemprob}{The item probabilities, conditional on class membership.}
+\item{itemprob}{The item probabilities, conditional on class membership. Either a matrix or a list dependending on whether there are only dichotomous variables or a mix of di and polychotomous variables.}
 \item{classprob}{The class probabilities.}
 \item{Z}{Estimate of class membership for each unique datapoint.}
-\item{itemprob.sd}{Posterior standard deviation estimates of the item probabilities.}
+\item{itemprob.sd}{Posterior standard deviation estimates of the item probabilities. Either a matrix or a list dependending on whether there are only dichotomous variables or a mix of di and polychotomous variables.}
 \item{classprob.sd}{Posterior standard deviation estimates of the class probabilities.}
 \item{classprob.initial, itemprob.initial}{Initial parameter values for classprob and itemprob, used to run over each bootstrapped sample.}
 \item{samples}{A list containing the parameter estimates for each bootstrapped sample.}
-\item{logpost}{The log-posterior of the estimated model.}
 \item{BIC}{The Bayesian Information Criterion for the estimated model.}
 \item{AIC}{Akaike's Information Criterion for the estimated model.}
+\item{logpost}{The log-posterior of the estimated model.}
 \item{label}{Logical value, indicating whether label switching has been checked for.}
-\item{counts}{ The number of times each unique datapoint point occured.}
 \item{prior}{A list containing the prior values specified for the model.}
+\item{B}{Number of bootstrap samples.}
+\item{counts.n}{ The number of times each unique datapoint point occured.}
+\item{ncat}{The ncat vector from the call.}
+\item{model.indicator}{Binary vector indicating the variables which were included for clustering.}
+\item{MAP}{Logical indicating whether the MAP was targeted i.e. whether the maximum of the log posterior or log likelihood was used.}
 }
 \references{
    Wasserman, L, 22nd May 2007, \emph{All of Nonparametric Statistics}, Springer-Verlag.

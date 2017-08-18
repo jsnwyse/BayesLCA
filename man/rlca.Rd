@@ -8,7 +8,7 @@ Randomly Generate Binary Data with Underlying Latent Classes
 A function which randomly generates data with respect to some underlying latent class. Data may be generated either by specifying item and class probabilities or by utilising an object previously fitted to data.
 }
 \usage{
-rlca(n, itemprob = 0.5, classprob = 1, fit = NULL)
+rlca(n, itemprob = 0.5, classprob = 1, fit = NULL, ncat=NULL )
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -19,11 +19,15 @@ Number of data points to be generated.
 The item probabilities, conditional on class membership. Defaults to 0.5.
 }
   \item{classprob}{
-The class probabilities. Defaults to 1, i.e., a one class model.
+The class probabilities. Defaults to 1, i.e., a one class model. In the case where any of the variables are encoded by more than two categories, this should be formatted as a list of matrices, one for each variable, of size G by the number of categories.
 }
   \item{fit}{
 An object of class blca. If fit is supplied, data is generated using the class and item probabilities obtained. Defaults to NULL.
 }
+\item{ncat}{
+	The number of categories in each variable (column).
+}
+
 }
 
 

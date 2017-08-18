@@ -8,18 +8,24 @@ Bayesian Latent Class Analysis  via a variational Bayes algorithm
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X. blca.vb uses a variational EM algorithm to find the distribution which best approximates the parameters' true distribution.
 }
 \usage{
-blca.vb(X, G, alpha = 1, beta = 1, delta = 1, 
-	start.vals = c("single", "across"), counts.n = NULL, 
-        iter = 500, restarts = 1, verbose = TRUE, conv = 1e-06, 
-	small = 1e-100)
+blca.vb( X, G, ncat=NULL, alpha=1, beta=1, delta=1,
+ start.vals=c("single", "across"), counts.n=NULL,
+ model.indicator=NULL, iter=5000, restarts=5, 
+ verbose=TRUE, conv=1e-6, small=1e-100 )
 }
+
+
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{X}{
 The data matrix. This may take one of several forms, see \code{\link{data.blca}}.
 }
+
   \item{G}{
 The number of classes to run lca for.
+}
+\item{ncat}{
+	The number of categories in each variable (column).
 }
 
   \item{alpha, beta}{
@@ -32,8 +38,14 @@ Prior values for the mixture components in model.  Defaults to 1, i.e., a unifor
  \item{start.vals}{
 Denotes how class membership is to be assigned during the initial step of the algorithm. Two character values may be chosen, "single", which randomly assigns data points exclusively to one class, or "across", which assigns class membership via  \code{\link{runif}}. Alternatively, class membership may be pre-specified, either as a vector of class membership, or as a matrix of probabilities. Defaults to "single".
 }
+
 \item{counts.n}{
 If data patterns have already been counted, a data matrix consisting of each unique data pattern can be supplied to the function, in addition to a vector counts.n, which supplies the corresponding number of times each pattern occurs in the data. 
+}
+
+
+\item{model.indicator}{
+Binary vector of length the number of columns of X giving the variables to include when fitting the LCA model (a 1 means include).
 }
   \item{iter}{
 The maximum number of iterations that the algorithm runs over.  Will stop earlier if the algorithm converges.
@@ -72,9 +84,9 @@ A list of class "blca.vb" is returned, containing:
 \item{Z}{Estimate of class membership for each unique datapoint.}
 \item{LB}{The lower bound estimate of the log-posterior of the estimated model.}
 \item{lbstore }{The value of the lower bound estimate for each iteration.}
+\item{converged}{Logical indicating whether the algorithm converged.}
 \item{iter}{The number of iterations required before convergence.}
 \item{eps}{The amount that the lower bound increased at the final iteration  of the algorithm's run. }
-\item{counts}{ The number of times each unique datapoint point occured.}
 \item{prior}{A list containing the prior values specified for the model.}
 }
 \references{
@@ -91,7 +103,7 @@ Earlier versions of this function erroneously referred to posterior standard dev
 
 \seealso{
 %% ~~objects to See Also as \code{\link{help}}, ~~~
-\code{\link{blca.em}}, \code{\link{blca.gibbs}}
+\code{\link{blca.em}}, \code{\link{blca.gibbs}}, \code{\link{blca.collapsed}}
 }
 \examples{
 type1 <- c(0.8, 0.8, 0.2, 0.2)

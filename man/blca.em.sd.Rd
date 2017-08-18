@@ -66,9 +66,9 @@ fit1$classprob.sd
 
 set.seed(1)
 fit2<- blca.em(dat, 2, se=FALSE)
-fit2.sd<- blca.em.sd(fit2, dat)
-fit2.sd$itemprob
-fit2.sd$classprob
+#fit2.sd<- blca.em.sd(fit2, dat)
+#fit2.sd$itemprob
+#fit2.sd$classprob
 }
 
 % Add one or more standard keywords, see file 'KEYWORDS' in the
