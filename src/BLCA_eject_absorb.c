@@ -21,7 +21,7 @@ int BLCA_update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accep
 {
 
 	int i,ii,j,k,g1,g2,ig1,ig2,curr_n_g1,curr_n_g2,m,ntot,c=0,d = mixmod->d,identify_g1,identify_g2,id;
-	int *indexes,*order,*proposed_allocation,G = mixmod->G;
+	int *indexes,*order,*proposed_allocation,G = mixmod->G, *x;
 	double w,a,prob_put_in_g2,log_acceptance,log_transition_z_to_zprime=0.,log_transition_zprime_to_z=0.;
 	struct component *component_g1,*component_g2;
 
@@ -82,7 +82,7 @@ int BLCA_update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accep
 		
 		for(i=0;i<mixmod->n;i++){
 			if(mixmod->z[i] == g1){
-				indexes[c] = i;
+				indexes[c] = i; 
 				c += 1;
 			}
 		}	
@@ -110,25 +110,19 @@ int BLCA_update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accep
 		
 			ii = indexes[i];
 			
+			x = mixmod->Yobs[ii];
+			
 			if( runif(0.0,1.0) < prob_put_in_g2){
 			
 				/*then move this point to g2*/
 				
 				/*first take out of component_g1*/
 				
-				component_g1->n_g -= 1;
-				
-				for(j=0;j<d;j++){
-					component_g1->N[j][ mixmod->Y[j][ii] ] -= 1;
-				}
+				BLCA_add_to_component( component_g1, x, mixmod, -1 );
 				
 				/*and put in the new component*/
 				
-				component_g2->n_g += 1;
-				
-				for(j=0;j<d;j++){
-					component_g2->N[j][ mixmod->Y[j][ii] ] += 1;
-				}	
+				BLCA_add_to_component( component_g2, x, mixmod, 1 );
 				
 				proposed_allocation[i] = g2;
 			
@@ -143,6 +137,7 @@ int BLCA_update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accep
 	
 	}
 	
+	mixmod->component_compute = 0 ; //in this case the priors are symmetric
 	BLCA_recompute_marginal_likelihood_component(component_g1,mixmod);
 	BLCA_recompute_marginal_likelihood_component(component_g2,mixmod);	
 	
@@ -165,7 +160,7 @@ int BLCA_update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accep
 							- log_transition_z_to_zprime + log_transition_zprime_to_z + mixmod->log_prior_G[G+1] - mixmod->log_prior_G[G];
 							
 	
-	//printf("\nlog_acceptance = %.10f",log_acceptance);
+	//Rprintf("\nlog_acceptance eject move = %.10f",log_acceptance);
 	
 	if(log( runif(0.0,1.0) ) < log_acceptance){
 	
@@ -261,7 +256,7 @@ int BLCA_update_allocations_with_ejection_move(struct mix_mod *mixmod,int *accep
 int BLCA_update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepted,int *proposed,double pr_ej_G,double pr_ej_Gm1)
 {
 	int i,ii,j,k,g1,g2,ig1,ig2,curr_n_g1,curr_n_g2,m,ntot,c=0,d = mixmod->d,identify_g1,identify_g2,id;
-	int *indexes,*order,*proposed_allocation,G = mixmod->G,n_g2;
+	int *indexes,*order,*proposed_allocation,G = mixmod->G,n_g2, *x;
 	double w,a,prob_put_in_g2,log_acceptance,log_transition_z_to_zprime=0.,log_transition_zprime_to_z=0.;
 	struct component *component_g1,*component_g2;
 	
@@ -337,16 +332,15 @@ int BLCA_update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepte
 		
 			ii = indexes[i];
 			
-			component_g1->n_g += 1;
+			x = mixmod->Yobs[ii];
 			
-			for(j=0;j<d;j++){
-				component_g1->N[j][ mixmod->Y[j][ii] ] += 1;
-			}	
+			BLCA_add_to_component( component_g1, x, mixmod, 1 );
 			
 		}	
 	
 	}
 	
+	mixmod->component_compute = 0;
 	BLCA_recompute_marginal_likelihood_component(component_g1,mixmod);	
 	
 	/*compute the acceptance probability, remembering to add all necessary normalizing constants*/
@@ -377,7 +371,7 @@ int BLCA_update_allocations_with_absorb_move(struct mix_mod *mixmod,int *accepte
 							- log_transition_z_to_zprime + log_transition_zprime_to_z + mixmod->log_prior_G[G-1] - mixmod->log_prior_G[G];	
 	
 
-	//printf("\nlog_acceptance absorb move is %.10f\n",log_acceptance);
+	//Rprintf("\nlog_acceptance absorb move is %.10f\n",log_acceptance);
 
 	if(log( runif(0.0,1.0) ) < log_acceptance){
 	

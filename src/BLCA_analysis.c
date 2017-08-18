@@ -10,24 +10,25 @@
 			Ireland.
 			mailto: wyseja@tcd.ie
 			
-	Last modification of this code: Thu 04 Aug 2016 21:02:24 IST    */
+	Last modification of this code: Thu 04 Aug 2016 21:02:24 IST */
 	
 #include "BLCA_analysis.h"
 
 struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int fixedG, int onlyGibbs, 
 			int selectVariables, int *group_memberships, int *variable_inclusion_indicator, int *n_groups, double *log_joint_posterior, 
-			double *prior_include, int *var_pattern )
+			double *prior_include, int *var_pattern, int verbose, int verbose_update )
 /*fixedG takes the value either TRUE or FALSE as defined in the macros*/
 {
 
 	int i, j, k, l, itmod, d_in, ej_case, vs_case, maxgroups = mixmod->maxgroups;
 	
-	int gap = (num_iteration - num_burnin)/(thin_by);
+	int gap = (int)( num_iteration / thin_by) ;
 	
 	//writeToFile = FALSE;
 	
 	//struct results res,*results;
 	//results = &res;
+	
 
 	double pr_ej_G,pr_ej_Gm1,pr_ej_Gp1;
 	
@@ -40,7 +41,9 @@ struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_it
 	   mixmod->varindicator[j] = var_pattern[j];
 	}
 	
-	for(l=0;l<num_iteration;l++){
+	if( verbose ) Rprintf("\nInitializing sampler... starting burn-in...");
+	
+	for(l=0;l<num_iteration + num_burnin;l++){
 	
 		R_CheckUserInterrupt();
 		
@@ -132,15 +135,20 @@ struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_it
 		
 		if(selectVariables){
 			j = BLCA_random_integer(mixmod->d);
-			BLCA_update_model_by_variable_include_exclude(mixmod,&(results->accepted_include_exclude_variable),&(results->proposed_include_exclude_variable),j);
+			BLCA_update_model_by_variable_include_exclude_old(mixmod,&(results->accepted_include_exclude_variable),&(results->proposed_include_exclude_variable),j);
 			if(mixmod->hprior_model){
-				//update the prior probaility variable inclusion using hyperprior
+				//update the prior probability variable inclusion using hyperprior
 				j = 0;
 				for(i=0;i<mixmod->d;i++) j += mixmod->varindicator[i];
 				mixmod->prior_prob_variable_include = rbeta( (double)j + mixmod->hprior_model_a0, (double)(mixmod->d-j) + mixmod->hprior_model_b0);
 			}
 		}
 		
+		if( verbose && l == num_burnin-1 ) 
+		{
+				Rprintf("\nBurn-in completed...");
+		}
+		if( l == num_burnin-1 ) BLCA_reset_results( results );
 		
 		if(l > num_burnin-1 && (l+1-num_burnin)%thin_by == 0){
 		
@@ -164,21 +172,26 @@ struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_it
 			prior_include[itmod] = mixmod->prior_prob_variable_include;	
 				
 			for(j=0;j<mixmod->n;j++){
-				group_memberships[itmod + j*gap ] = mixmod->z[j];
+				group_memberships[ itmod + j*gap ] = mixmod->z[j];
 			}
+			
+			if( verbose && ( (l+1-num_burnin)/thin_by )%verbose_update == 0 )
+				Rprintf("\n%d of %d samples completed....",(l+1-num_burnin)/thin_by,gap);
 					
 		}
 		
 		
 		/*store the value of the log posterior here- full value (incl prior for no. components)*/
-		log_joint_posterior[l] = BLCA_get_full_log_posterior(mixmod);
+		log_joint_posterior[itmod] = BLCA_get_full_log_posterior(mixmod);
 
 	}
+	
+	if( verbose ) Rprintf("\n");
 	
 	
 	if(selectVariables){
 		for(i=0;i<mixmod->d;i++){
-			results->variable_prob_inclusion[i] /= ((num_iteration-num_burnin)/thin_by);
+			//results->variable_prob_inclusion[i] /= ((num_iteration-num_burnin)/thin_by);
 		}
 	}
 	
@@ -205,39 +218,14 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 	v = calloc(mixmod->d,sizeof(double *));
 	for(i=0;i<mixmod->d;i++) v[i] = calloc(mixmod->ncat[i],sizeof(double));
 	
-	int gap = num_iteration/thin_by, gap_;
+	int gap = (int)( num_iteration/thin_by ) , gap_;
 	
 	if( verbose ) Rprintf("\nInitializing sampler... starting burn-in.\n");
 	
 	for(l=0;l<num_iteration+num_burnin;l++){
 	
 		R_CheckUserInterrupt();
-	
-		//sample the weights
-		s = 0.;
-		for(i=0;i<mixmod->G;i++){
-			w[i] = rgamma( (double) mixmod->components[i]->n_g + mixmod->alpha , 1.  ) ;
-			s += w[i];
-		}
-		for(i=0;i<mixmod->G;i++) mixmod->weights[i] = w[i]/s;
 		
-		//sample the variable probabilities
-		for(i=0;i<mixmod->G;i++){
-			for(j=0;j<mixmod->d;j++){
-			
-				if( mixmod->varindicator[j] )
-				{
-					//only sample if the variable is included in the model
-					s = 0.;
-					for(k=0;k<mixmod->ncat[j];k++){
-						 v[j][k] =  rgamma( (double)mixmod->components[i]->N[j][k] + mixmod->beta , 1. ) ;
-						 s += v[j][k];
-					}
-					for(k=0;k<mixmod->ncat[j];k++) mixmod->components[i]->prob_variables[j][k] = v[j][k]/s;
-				}
-			}
-		}
-	
 		//sample the memberships in a random order
 		
 		for(i=0;i<mixmod->n;i++){
@@ -282,30 +270,48 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 			if(g_new != mixmod->z[idx])
 			{
 				//take out of component counts in old and put into new
-				for(j=0;j<mixmod->d;j++)
-				{
-					if( mixmod->varindicator[j] )
-					{
-						c = mixmod->Y[j][idx];
-						mixmod->components[ mixmod->z[idx] ]->N[j][c] -= 1;
-						mixmod->components[ g_new ]->N[j][c] += 1;
-					}
-				}
-				//reduce the count of the old component
-				mixmod->components[ mixmod->z[idx] ]->n_g -= 1;
-				mixmod->components[ g_new ]->n_g += 1;
+				BLCA_add_to_component( mixmod->components[ mixmod->z[idx] ], mixmod->Yobs[idx], mixmod, -1 );
+				BLCA_add_to_component( mixmod->components[ g_new ], mixmod->Yobs[idx], mixmod, 1 );
+				
 				mixmod->z[idx] = g_new;
 			}
 			
+		}		
+		
+		//sample the weights
+		s = 0.;
+		for(i=0;i<mixmod->G;i++){
+			w[i] = rgamma( (double) mixmod->components[i]->n_g + mixmod->alpha_prior[i] , 1.  ) ;
+			s += w[i];
 		}
+		for(i=0;i<mixmod->G;i++) mixmod->weights[i] = w[i]/s;
+		
+		
+		//sample the variable probabilities
+		for(i=0;i<mixmod->G;i++){
+			for(j=0;j<mixmod->d;j++){
+			
+				if( mixmod->varindicator[j] )
+				{
+					//only sample if the variable is included in the model
+					s = 0.;
+					for(k=0;k<mixmod->ncat[j];k++){
+						 v[j][k] =  rgamma( (double)mixmod->components[i]->N[j][k] + mixmod->beta_prior[i][j][k] , 1. ) ;
+						 s += v[j][k];
+					}
+					for(k=0;k<mixmod->ncat[j];k++) mixmod->components[i]->prob_variables[j][k] = v[j][k]/s;
+				}
+			}
+		}
+	
 		
 		p = 0;
 		
 		//storage of results
 		if(l > num_burnin-1 && (l+1-num_burnin)%thin_by == 0){
 		
-			if( verbose && l == num_burnin-1 ) 
-				Rprintf("\nBurn-in completed...\n");
+			if( verbose && l == num_burnin ) 
+				Rprintf("\nBurn-in completed...");
 				
 		
 			itmod = ((l+1-num_burnin)/thin_by)-1;
@@ -315,10 +321,9 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 				group_memberships[itmod + j*gap ] = mixmod->z[j];
 			}		
 			
-			//there is potentially a bug here-- check this out...
 				
 			for(j=0;j<mixmod->d;j++){
-				gap_ = p*mixmod->G*gap;
+				gap_ = p * mixmod->G * gap;
 				for(i=0;i<mixmod->G;i++){
 					for(k=0;k<mixmod->ncat[j];k++){
 						variable_probabilities[ //long index expression
@@ -336,11 +341,13 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 			log_joint_posterior[ itmod ] = BLCA_get_full_log_posterior_x2(mixmod);
 			
 			if( verbose && (l+1-num_burnin)%verbose_update == 0 )
-				Rprintf("\n%d of %d samples completed....\n",l+1-num_burnin,num_iteration);
+				Rprintf("\n%d of %d samples completed....",l+1-num_burnin,num_iteration);
 					
 		}	
 		
 	}
+	
+	if(verbose) Rprintf("\n");
 
 	free(w);
 	for(i=0;i<mixmod->d;i++) free(v[i]);
@@ -353,7 +360,7 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 
 
 void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iterations, double *membership_probabilities, 
-				double *group_weights, double *variable_probabilities, double *log_likelihood, int MAP, double tol, int *converged ) 
+				double *group_weights, double *variable_probabilities, double *log_likelihood, int MAP, double tol, double *eps, int *converged ) 
 {
 	
 	int i, j, g, k, c, p, iter = 0 ;
@@ -366,26 +373,31 @@ void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iteratio
 	
 		R_CheckUserInterrupt();
 		
-		BLCA_E_step( mixmod );
-		
 		BLCA_M_step( mixmod );
 		
-		llike_new = BLCA_get_log_likelihood( mixmod ) ;
+		BLCA_E_step( mixmod );
+		
+		//llike_new = BLCA_get_log_likelihood( mixmod ) ;
+		
+		if( mixmod->EM_MAP ) mixmod->log_like += mixmod->log_prior;
 		
 		cond = fabs( mixmod->log_like - llike_old ) ;
 		
 		llike_old = mixmod->log_like;
 		
-		log_likelihood[ iter ] = llike_new ;
+		log_likelihood[ iter ] = mixmod->log_like;//llike_new ;
 		
 		iter++;
 		
 	}
 	
+	//Rprintf("\n Log post is %lf ", log_likelihood[iter-1]);
+	
 	if( cond < tol ) *converged = TRUE; else *converged = FALSE;
 	
 	//number of iterations to converge (if converged)
 	*iterations = iter;
+	*eps = cond;
 	
 	//store the results before returning
 	
@@ -437,7 +449,8 @@ void BLCA_E_step( struct mix_mod *mixmod )
 				
 				if( mixmod->varindicator[j] )
 				{
-					c = mixmod->Y[j][k] ;
+					if( mixmod->EM_fit ) c = mixmod->Y[j][k] ;
+					if( mixmod->BOOT ) c = mixmod->Y[j][ mixmod->boot_idx[k] ] ; 
 					mixmod->s[k][g] += log( mixmod->components[g]->prob_variables[j][c] ) ;
 				}
 			
@@ -448,6 +461,12 @@ void BLCA_E_step( struct mix_mod *mixmod )
 		mixmod->log_like += BLCA_get_log_sum_exp( mixmod->s[k] , mixmod->G ) ;
 	}
 
+	//add prior terms if EM_MAP
+	/*if( mixmod->EM_MAP ) 
+	{
+		mixmod->log_like += mixmod->log_prior ; 
+	}*/
+
 	return;
 }
 
@@ -455,6 +474,11 @@ void BLCA_E_step( struct mix_mod *mixmod )
 void BLCA_M_step( struct mix_mod *mixmod )
 {
 	int k, g, j, c;
+	double a, s = 0., r=0., eps=1E-10;
+	
+	// eps is a small value to prevent numerical instability for small probabilities
+	
+	struct component *comp;
 	
 	//separate cases if the mixmod->EM_MAP is TRUE
 	
@@ -469,41 +493,84 @@ void BLCA_M_step( struct mix_mod *mixmod )
 	}
 	
 	// update the variable probabilities
+	//update the prior term as going
+	
+	if( mixmod->EM_MAP ) mixmod->log_prior = 0.;
+	
 	for( g=0; g<mixmod->G; g++ )
 	{
+	
+		comp = mixmod->components[g];
+	
 		for( j=0; j<mixmod->d; j++ )
 		{
 			if( mixmod->varindicator[j] )
 			{
-				for( c=0; c<mixmod->ncat[j]; c++ )
-					mixmod->components[g]->prob_variables[j][c] = 0.;
+			
+				for( c=0; c<mixmod->ncat[j]; c++ ) comp->prob_variables[j][c] = 0.;
 				
 				for( k=0; k<mixmod->n; k++ )
 				{
-					c = mixmod->Y[j][k] ;
-					mixmod->components[g]->prob_variables[j][c] += mixmod->s[k][g] ;
+					if( mixmod->EM_fit ) c = mixmod->Y[j][k] ; 
+					if( mixmod->BOOT ) c = mixmod->Y[j][ mixmod->boot_idx[k] ] ;
+					comp->prob_variables[j][c] += mixmod->s[k][g] ;
 				}
+				
+				s = 0.;
 				
 				for( c=0; c<mixmod->ncat[j]; c++ )
 				{
 					if( mixmod->EM_MAP )
 					{
-						mixmod->components[g]->prob_variables[j][c] 
-							= ( mixmod->components[g]->prob_variables[j][c] + mixmod->beta - 1. )  / ( mixmod->weights[g] + mixmod->ncat[j] *( mixmod->beta - 1. ) ) ;
+						comp->prob_variables[j][c] += mixmod->beta_prior[g][j][c] - 1. ;
+						s += mixmod->beta_prior[g][j][c] ; 
 					}
 					else
 					{
-						mixmod->components[g]->prob_variables[j][c] /= mixmod->weights[g] ;
+						comp->prob_variables[j][c] /= mixmod->weights[g] ;
 					}
 				}
+				
+				if( mixmod->EM_MAP )
+				{
+					for( c=0;  c<mixmod->ncat[j]; c++ ) 
+					{
+						comp->prob_variables[j][c] /= ( mixmod->weights[g] + s - mixmod->ncat[j] );
+						a = comp->prob_variables[j][c] < eps ? eps : comp->prob_variables[j][c] ;
+						mixmod->log_prior += ( mixmod->beta_prior[g][j][c] - 1. ) * log( a ) ;
+						mixmod->log_prior -= lgamma( mixmod->beta_prior[g][j][c] ) ;  
+					}
+					mixmod->log_prior += lgamma( s ) ;
+				}
+				
 			}
 		}
 		
 		if( mixmod->EM_MAP )
-			mixmod->weights[g] = ( mixmod->weights[g] + mixmod->alpha - 1. ) / ( mixmod->n + mixmod->G * ( mixmod->alpha - 1. ) ) ;
+		{
+			r += mixmod->alpha_prior[g] ; 
+			mixmod->weights[g] +=  mixmod->alpha_prior[g] - 1. ;
+		}
 		else
+		{
 			mixmod->weights[g] /= mixmod->n ;
+		}
+		
 	}
+	
+	if( mixmod->EM_MAP )
+	{
+		for( g=0; g<mixmod->G; g++ ) 
+		{
+			mixmod->weights[g] /= ( mixmod->n + r - mixmod->G );
+			a = mixmod->weights[g] < eps ? eps : mixmod->weights[g] ; 
+			mixmod->log_prior += ( mixmod->alpha_prior[g] - 1.) * log( a ) ; 
+			mixmod->log_prior -= lgamma( mixmod->alpha_prior[g] ); 
+		}
+		
+		 mixmod->log_prior += lgamma( r ) ;
+	}
+	
 	
 	return;
 }
@@ -511,7 +578,7 @@ void BLCA_M_step( struct mix_mod *mixmod )
 /*-------------------------------------- VB algorithm -----------------------------------*/
 
 void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iterations, double *group_probabilities, double *group_weights, 
-				double *sd_group_weights, double *prob_variables, double *sd_prob_variables, double *lower_bound, double tol, int *converged, double *log_post )
+				double *sd_group_weights, double *vb_pars_group_weights, double *prob_variables, double *sd_prob_variables, double *vb_pars_prob_variables, double *lower_bound, double tol, int *converged, double *log_post )
 {
 	int i, j, g, k, c, p, iter = 0 ;
 	double cond = DBL_MAX, bound_new, bound_old = -DBL_MAX ;
@@ -552,6 +619,7 @@ void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iteratio
 	for( g=0; g<mixmod->G ; g++ )  
 	{
 		group_weights[g] = mixmod->alpha_ud[g] / sum_alpha_ud ;
+		vb_pars_group_weights[g] = mixmod->alpha_ud[g] ;
 		mixmod->weights[g] = group_weights[g] ;
 		var = mixmod->alpha_ud[g] * ( sum_alpha_ud - mixmod->alpha_ud[g] ) / ( sum_alpha_ud * sum_alpha_ud * ( sum_alpha_ud + 1. ) );
 		sd_group_weights[g] = sqrt( var );
@@ -608,6 +676,8 @@ void BLCA_analysis_VB( struct mix_mod *mixmod, int max_iterations, int *iteratio
 			{
 				prob_variables[ gap_ + g * mixmod->ncat[j] + c ] = mixmod->components[g]->prob_variables[j][c] ;
 				sd_prob_variables[ gap_ + g * mixmod->ncat[j] + c ] = sqrt( var_prob_variables[g][j][c] ) ;
+				//vb pars
+				vb_pars_prob_variables[ gap_ + g * mixmod->ncat[j] + c ] = comp->beta_ud[j][c] ;
 			}
 		} 
 		p += mixmod->ncat[j] ;
@@ -678,9 +748,9 @@ void BLCA_VB_alpha_beta_step( struct mix_mod *mixmod )
 	mixmod->di_sum_alpha_ud = 0.;
 	for( g=0; g<mixmod->G; g++ )
 	{
-		mixmod->alpha_ud[g] = colsums[g] + mixmod->alpha; 
+		mixmod->alpha_ud[g] = colsums[g] + mixmod->alpha_prior[g]; 
 		mixmod->di_alpha_ud[g] = digammaRN( mixmod->alpha_ud[g] );
-		//we should be getting the digamma of the sum not the sum of the digammas!
+
 		mixmod->di_sum_alpha_ud += mixmod->alpha_ud[g];
 		
 		//initialize the beta update
@@ -690,7 +760,7 @@ void BLCA_VB_alpha_beta_step( struct mix_mod *mixmod )
 			if( mixmod->varindicator[j] )
 			{
 				for( c=0; c<mixmod->ncat[j]; c++ )
-					comp->beta_ud[j][c] = mixmod->beta ;
+					comp->beta_ud[j][c] = mixmod->beta_prior[g][j][c] ;
 			}
 		}
 		
@@ -737,5 +807,91 @@ void BLCA_VB_alpha_beta_step( struct mix_mod *mixmod )
 	return;
 }
 
+
+void BLCA_analysis_Boot( struct mix_mod *mixmod, int boot_samples, int max_iterations, 
+									double *group_weights, double *prob_variables, double *log_likelihood, double tol, int verbose, int verbose_update )
+{
+
+	int b, iter, i, j, k, l, c, p, idx, g_new, ind, gap = boot_samples, gap_, *boot_idx;
+	double cond = DBL_MAX, llike_new, llike_old = -DBL_MAX ;
+	
+	//store the probabilities & weights from original EM run
+	struct mix_mod *mixmod_0 = BLCA_clone_mixmod( mixmod );
+	
+	for( b=0; b<boot_samples; b++ )
+	{
+		// generate indexes for a bootstrap sample
+		for( k=0; k<mixmod->n; k++ ) 
+		{
+			mixmod->boot_idx[k] = (int) ( runif(0.0,1.0) * mixmod->n ) ;
+			//Rprintf("\n boot sample %d is %d: %d", b, k, mixmod->boot_idx[k] ) ;	
+		}
+		
+		
+		// reset the component weights and item probabilities from original fit
+		for( k=0; k<mixmod->G; k++ ) 
+		{
+			BLCA_copy_component( mixmod_0->components[k], mixmod->components[k], mixmod );
+			mixmod->weights[k] = mixmod_0->weights[k];
+		}
+		
+		cond = DBL_MAX; llike_old = -DBL_MAX; iter = 0;
+	
+		while( cond > tol  && iter < max_iterations )
+		{
+	
+			R_CheckUserInterrupt();
+			
+			BLCA_E_step( mixmod );
+		
+			BLCA_M_step( mixmod );
+		
+			if( mixmod->EM_MAP ) mixmod->log_like += mixmod->log_prior;
+		
+			cond = fabs( mixmod->log_like - llike_old ) ;
+		
+			llike_old = mixmod->log_like;
+		
+			//log_likelihood[ iter ] = mixmod->log_like;
+		
+			iter++;
+		
+		}
+		
+		log_likelihood[b] = mixmod->log_like;
+	
+		p = 0;
+		
+		//storage of results	
+			
+		for(j=0;j<mixmod->d;j++){
+			gap_ = p * mixmod->G * gap ;
+			for(i=0;i<mixmod->G;i++){
+				for(k=0;k<mixmod->ncat[j];k++){
+					prob_variables[ //long index expression
+							
+						gap_ + b * mixmod->ncat[j]*mixmod->G + i*mixmod->ncat[j] + k 
+								
+						] = mixmod->components[i]->prob_variables[j][k];
+				}
+			}
+				p += mixmod->ncat[j];
+		}
+				
+		for(i=0;i<mixmod->G;i++) group_weights[ b * mixmod->G + i ] = mixmod->weights[i];
+			
+		//log_joint_posterior[ itmod ] = BLCA_get_full_log_posterior_x2(mixmod);
+			
+		if( verbose && (b+1)%verbose_update == 0 )
+			Rprintf("\n%d of %d bootstrap samples completed....",b+1,boot_samples);
+					
+	
+	}
+	
+	BLCA_free_mixmod( mixmod_0 );
+	
+	return;
+	
+}
 
 

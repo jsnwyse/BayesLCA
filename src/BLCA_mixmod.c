@@ -15,7 +15,7 @@
 
 #include "BLCA_mixmod.h"
 
-struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit, int EM_MAP, int VB )
+struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,double *prior_hparams,int *ncat, int collapsed, int EM_fit, int EM_MAP, int VB, int BOOT )
 /*this function allocates and returns a pointer to a mixmod structure...*/
 {
 
@@ -32,6 +32,7 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 	mixmod->EM_fit = EM_fit;
 	mixmod->EM_MAP = EM_MAP;
 	mixmod->VB =  VB;
+	mixmod->BOOT = BOOT;
 	
 	mixmod->Y = calloc(datadimension,sizeof(int *));
 	for(i=0;i<datadimension;i++){
@@ -43,9 +44,9 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 		mixmod->Yobs[i] = calloc(datadimension,sizeof(int *));
 	}
 	
-	if( !EM_fit ) mixmod->z = calloc(datasize,sizeof(int));
+	mixmod->z = calloc(datasize,sizeof(int));
 	
-	if( EM_fit || VB ) 
+	if( !mixmod->collapsed ) 
 	{
 		mixmod->s = calloc(datasize, sizeof(double *));
 		for( i=0;i<datasize;i++){
@@ -72,6 +73,18 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 	mixmod->undiscriminating->n_g = mixmod->n; /*there is always n elements in here as these variables
 																	do not define a clustering...*/
 
+	//priors
+	
+	mixmod->alpha_prior =  calloc( maxgroups, sizeof(double) ) ;
+	mixmod->beta_prior = calloc( maxgroups, sizeof(double**) );
+	for( k=0; k<maxgroups; k++ ) 
+	{
+		mixmod->beta_prior[k] = calloc( datadimension, sizeof(double*) );
+		for( i=0; i<datadimension; i++ )
+		{
+			mixmod->beta_prior[k][i] = calloc( ncat[i], sizeof(double) );
+		}
+	}
 	
 	/*allocate whereis*/
 	
@@ -104,6 +117,8 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 	
 	mixmod->log_like = -DBL_MAX;
 	
+	mixmod->log_prior = -DBL_MAX;
+	
 	/*assign space for the lookup table for a values*/
 	
 	//mixmod->table_a = calloc(datasize,sizeof(double));
@@ -116,9 +131,39 @@ struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgro
 		mixmod->di_alpha_ud = calloc( mixmod->G, sizeof(double) );
 	}
 	
+	if( BOOT )
+	{
+		mixmod->boot_idx = calloc( mixmod->n, sizeof(int) );
+	}
+	
 	return(mixmod);
 
 }
+
+struct mix_mod *BLCA_clone_mixmod( struct mix_mod *mixmod )
+{
+
+	int k;
+	double *hparams = calloc( 2, sizeof(double) );
+	hparams[0] = mixmod->alpha;
+	hparams[1] = mixmod->beta;
+	
+	struct mix_mod *mixmod_clone; 
+
+	mixmod_clone = BLCA_allocate_mixmod( mixmod->n, mixmod->d, mixmod->G, mixmod->G, hparams, mixmod->ncat, mixmod->collapsed, mixmod->EM_fit, mixmod->EM_MAP, mixmod->VB, mixmod->BOOT );
+	
+	for( k=0; k<mixmod->G; k++ )
+	{
+		BLCA_copy_component( mixmod->components[k], mixmod_clone->components[k] , mixmod );
+		mixmod_clone->weights[k] = mixmod->weights[k]; 
+	}
+	
+	free( hparams );
+	
+	return( mixmod_clone );
+
+}
+
 
 void BLCA_free_mixmod(struct mix_mod *mixmod)
 /*frees the memory used by mixmod object*/
@@ -135,6 +180,16 @@ void BLCA_free_mixmod(struct mix_mod *mixmod)
 	BLCA_free_component(mixmod->undiscriminating,mixmod);
 	free(mixmod->undiscriminating);
 	
+	// free priors
+	free( mixmod->alpha_prior );
+	for( k=0; k<mixmod->maxgroups; k++ )
+	{
+		for( i=0; i<d; i++ ) free(mixmod->beta_prior[k][i]);
+		free( mixmod->beta_prior[k] );
+	}
+	free( mixmod->beta_prior );
+	
+	
 	/*free wehreis*/
 	free(mixmod->whereis);
 	
@@ -150,9 +205,9 @@ void BLCA_free_mixmod(struct mix_mod *mixmod)
 	free(mixmod->Yobs);
 	
 	/*free others*/
-	if( !mixmod->EM_fit ) free(mixmod->z);
+	free(mixmod->z);
 	
-	if( mixmod->EM_fit || mixmod->VB )
+	if( !mixmod->collapsed )
 	{
 		for(i=0;i<n;i++) free(mixmod->s[i]);
 		free(mixmod->s);
@@ -173,6 +228,8 @@ void BLCA_free_mixmod(struct mix_mod *mixmod)
 		free(mixmod->alpha_ud);
 		free(mixmod->di_alpha_ud);
 	}
+	
+	if( mixmod->BOOT ) free( mixmod->boot_idx );
 	
 	free(mixmod);
 	

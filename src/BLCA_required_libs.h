@@ -25,6 +25,7 @@
 #include <string.h>
 #include <R.h>
 #include <Rmath.h>
+#include <R_ext/Rdynload.h>
 
 //label switching
 #include "nrutil.h"

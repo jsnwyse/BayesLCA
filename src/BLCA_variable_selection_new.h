@@ -12,11 +12,11 @@
 			
 	Last modification of this code: Mon 09 May 2016 15:38:03 IST   */
 	
-#ifndef __BLCA_VARIABLE_SELECTION_H__
-#define __BLCA_VARIABLE_SELECTION_H__
+#ifndef __BLCA_VARIABLE_SELECTION_NEW_H__
+#define __BLCA_VARIABLE_SELECTION_NEW_H__
 
 #include "BLCA_mixmod.h"
 
-void BLCA_update_model_by_variable_include_exclude_old(struct mix_mod *mixmod,int *accepted,int *proposed,int var) ;
+void BLCA_update_model_by_variable_include_exclude( struct mix_mod *mixmod, int *accepted, int *proposed, int k ) ; 
 
 #endif

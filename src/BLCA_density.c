@@ -10,18 +10,30 @@
 			Ireland.
 			mailto: wyseja@tcd.ie
 			
-	Last modification of this code: Thu 04 Aug 2016 21:43:55 IST    */
+	Last modification of this code: Thu 27 Jul 2017 15:23:02 IST     */
 
 #include "BLCA_density.h"
 
 double BLCA_log_normalizing_constant_model(int G,struct mix_mod *mixmod)
 /*returns the log of the normalizing constant for a model with G components*/
 {
-	double z;
+	double z, s=0.;
+	int k;
 	
-	z =  lgamma(G*mixmod->alpha) - G*lgamma(mixmod->alpha) - lgamma(mixmod->n+G*mixmod->alpha);
+	if( mixmod->prior_type == 0 ) s = lgamma(G*mixmod->alpha) - G*lgamma(mixmod->alpha) - lgamma(mixmod->n+G*mixmod->alpha);
 	
-	return(z); 	
+	if( mixmod->prior_type == 1 )
+	{
+		z = 0.;
+		for( k=0; k<G; k++ ) 
+		{
+			z += mixmod->alpha_prior[k];
+			s -= lgamma(mixmod->alpha_prior[k]);
+		}
+		s += lgamma( z ) - lgamma( mixmod->n + z ) ;
+	}
+	
+	return(s); 	
 }
 
 double BLCA_l_prior_variable_include(int D,struct mix_mod *mixmod)
@@ -71,26 +83,32 @@ double BLCA_get_full_log_posterior(struct mix_mod *mixmod)
 double BLCA_get_full_log_posterior_x2(struct mix_mod *mixmod)
 {
 
-	double log_full_posterior;
+	double log_full_posterior=0., s=0., r=0.;
 	int j,i,c;
 
 	/*model normalizing constant*/
 	
-	log_full_posterior = lgamma(mixmod->G*mixmod->alpha) - mixmod->G*lgamma(mixmod->alpha);
+	//log_full_posterior = lgamma(mixmod->G*mixmod->alpha) - mixmod->G*lgamma(mixmod->alpha);
 	
 	for(i=0;i<mixmod->G;i++){
-		log_full_posterior += (mixmod->components[i]->n_g + mixmod->alpha -1.)*log(mixmod->weights[i]);
+		s += mixmod->alpha_prior[i];
+		log_full_posterior -= lgamma( mixmod->alpha_prior[i] );
+		log_full_posterior += (mixmod->components[i]->n_g + mixmod->alpha_prior[i] -1.)*log(mixmod->weights[i]);
 		for(j=0;j<mixmod->d;j++){
 		
 			if( mixmod->varindicator[j] )
 			{
+				r = 0.;
 				for(c=0;c<mixmod->ncat[j];c++){
-					log_full_posterior += (mixmod->components[i]->N[j][c] + mixmod->beta - 1.)*log(mixmod->components[i]->prob_variables[j][c]);
+					log_full_posterior -= lgamma( mixmod->beta_prior[i][j][c] ); 
+					log_full_posterior += (mixmod->components[i]->N[j][c] + mixmod->beta_prior[i][j][c] - 1.)*log(mixmod->components[i]->prob_variables[j][c]);				r += mixmod->beta_prior[i][j][c] ;
 				}
-				log_full_posterior += lgamma(mixmod->ncat[j]*mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta);
+				log_full_posterior += lgamma(r);
+				//log_full_posterior += lgamma(mixmod->ncat[j]*mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta);
 			}
 		}
 	}
+	log_full_posterior += lgamma(s);
 	
 	return(log_full_posterior);
 }
@@ -99,7 +117,7 @@ double BLCA_get_log_likelihood(struct mix_mod *mixmod)
 {
  	/*get log likelihood using stable log-sum-exp evaluation*/
 
-	double log_likelihood = 0., *ld = calloc(mixmod->G , sizeof(double)) ;
+	double log_likelihood = 0., s=0., r=0., *ld = calloc(mixmod->G , sizeof(double)) ;
 	int g, k, j, c;
 	
 	for( k=0; k<mixmod->n; k++ ){
@@ -118,29 +136,42 @@ double BLCA_get_log_likelihood(struct mix_mod *mixmod)
 		log_likelihood += BLCA_get_log_sum_exp( ld, mixmod->G ) ; 
 	}
 	
+	//Rprintf("\nloglike = %lf", log_likelihood );
+	
 	// additional terms for prior if looking for MAP 
 	if( mixmod->EM_MAP )
 	{
-		log_likelihood += lgamma( mixmod->G * mixmod->alpha ) - mixmod->G  * lgamma( mixmod->alpha ) ;
 		for( g=0; g<mixmod->G; g++ ) 
 		{
-			log_likelihood += ( mixmod->alpha - 1. ) *  log( mixmod->weights[g] ) ;
+			s += mixmod->alpha_prior[g];
+			log_likelihood -= lgamma( mixmod->alpha_prior[g] );
+			log_likelihood += ( mixmod->alpha_prior[g] - 1. ) *  log( mixmod->weights[g] ) ;
 			for( j=0; j<mixmod->d; j++ )
 			{
 				if( mixmod->varindicator[j] )
 				{
-					log_likelihood += lgamma( mixmod->ncat[j] * mixmod->beta ) - mixmod->ncat[j] * lgamma( mixmod->beta );
-					for( c=0; c<mixmod->ncat[j]; c++ ) log_likelihood += ( mixmod->beta - 1. ) * log( mixmod->components[g]->prob_variables[j][c] );
+					r = 0.;
+					for( c=0; c<mixmod->ncat[j]; c++ ) 
+					{
+						r += mixmod->beta_prior[g][j][c];
+						log_likelihood -= lgamma( mixmod->beta_prior[g][j][c] );
+						log_likelihood += ( mixmod->beta_prior[g][j][c] - 1. ) * log( mixmod->components[g]->prob_variables[j][c] );
+					}
+					log_likelihood += lgamma(r);
 				}
 			}
 		
 		}
-	
+		
+		log_likelihood += lgamma(s);
+		
+		//Rprintf("\n loglike 2 = %lf ", log_likelihood);
 	}
 	
 	free(ld);
 	return( log_likelihood ) ;
 }
+
 
 double BLCA_get_VB_bound( struct mix_mod *mixmod )
 {

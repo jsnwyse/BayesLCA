@@ -19,43 +19,70 @@ int BLCA_update_allocations_with_gibbs(struct mix_mod *mixmod)
 
 	//printf("\nwithin Gibbs...\n");
 
-	int i,ii,ind,j,k,g,g_prime,ig,ig_prime,d=mixmod->d,position,G=mixmod->G,*order,*x;
-	double *probs,max,z;
+	int i,ii,ind,j,k,g,g_prime,ig,ig_prime,d=mixmod->d,position,G=mixmod->G,*order,*x, *wis = mixmod->whereis,  prior=mixmod->prior_type ;
+	double *probs, *lpp_store, max, z, lc, lcm, lp, lpp  ;
 	
 	probs = calloc(G,sizeof(double));
+	lpp_store = calloc( G, sizeof(double) );
 	order = calloc(mixmod->n,sizeof(int));
 	
-	/*cycle through the elements in turn... maybe randomize order?*/
+	struct component *comp_c, *comp_p ; 
 	
-	/*randomize the order...*/
+	//cycle through the elements in turn... maybe randomize order?
+	
+	//randomize the order...
 	for(i=0;i<mixmod->n;i++){
 		order[i] = i;
 	}
 	
-	/*use gsl to shuffle*/
+	//use gsl to shuffle
 	BLCA_random_ranshuffle(order,mixmod->n);
 	
 	for(i=0;i<mixmod->n_gibbs;i++){
 	
 		ind = order[i];
 	
-		/*current group*/
+		//current group
 		g = mixmod->z[ind];
 		
-		/*point to the entry*/
+		//point to the entry
 		x = mixmod->Yobs[ind];
 		
-		/*cycle through remaining groups*/
+		comp_c = mixmod->components[ wis[g] ] ;
+		
+		lc = comp_c->log_prob;
+		
+		BLCA_add_to_component( comp_c, x, mixmod, -1 );
+		
+		if( prior == 1 ) mixmod->component_compute = g;
+		
+		lcm = BLCA_return_log_marginal_likelihood_component( comp_c, mixmod );
+		
+		//cycle through remaining groups
 		for(k=0;k<G;k++){
 			
-			if(!(k==g)){
+			if( k!=g )
+			{
 			
-				/*get the log probability ratio for this */
-				probs[k] = BLCA_get_log_relative_probability_for_gibbs(x,mixmod->components[mixmod->whereis[k]],mixmod->components[mixmod->whereis[g]],mixmod);
+				comp_p = mixmod->components[ wis[k] ] ;
 				
-			//	printf("\nprobs[%d] = %.10f",k,probs[k]);
+				lp = comp_p->log_prob ;
+				
+				BLCA_add_to_component( comp_p, x, mixmod, 1 ) ;
+				
+				if( prior == 1 ) mixmod->component_compute = k;
+				
+				lpp = BLCA_return_log_marginal_likelihood_component( comp_p, mixmod );
+				
+				lpp_store[k] = lpp;
+				
+				probs[k] = lpp + lcm - ( lc + lp ) ;
+				
+				BLCA_add_to_component( comp_p, x, mixmod, -1 );
 			
-			}else{
+			}
+			else
+			{
 			
 				/*if k==g this is easy*/
 			
@@ -82,41 +109,24 @@ int BLCA_update_allocations_with_gibbs(struct mix_mod *mixmod)
 		/*sample allocation from the vector of weights*/
 		g_prime = BLCA_sample_discrete(probs,G);
 		
-		//printf("\nNumber of groups = %d and g_prime = %d",G,g_prime);
-		
-		
-		/*only need to execute this if the labelling is different*/
-		if(!(g_prime == g)){
+
+		if( g_prime != g )
+		{
 			
-			ig = mixmod->whereis[g];
-			ig_prime = mixmod->whereis[g_prime];
-			
-			//printf("\nNumber of groups = %d and ig = %d and ig_prime = %d",G,ig,ig_prime);
-			/*need to recompute component[g_prime]->log_prob and component[g]->log_prob and 
-				update the relevant stored quantities*/
+			comp_p = mixmod->components[ wis[g_prime] ] ;
 			
 			mixmod->z[ind] = g_prime;
 			
-			/*udpate component g*/
-			mixmod->components[ig]->n_g -= 1;
-			mixmod->components[ig_prime]->n_g += 1;
+			BLCA_add_to_component( comp_p, x, mixmod, 1 );
 			
-			for(j=0;j<d;j++){
+			comp_p->log_prob = lpp_store[g_prime] ;
 			
-				/*update the component counts*/
+			comp_c->log_prob = lcm ;
 				
-				ii = mixmod->Y[j][ind];
-					
-				mixmod->components[ig]->N[j][ ii ] -= 1;
-				mixmod->components[ig_prime]->N[j][ ii ] += 1;
-				
-			}
-			
-			/*recompute the marginal likelihood of both components*/
-			
-			BLCA_recompute_marginal_likelihood_component(mixmod->components[ig],mixmod);
-			BLCA_recompute_marginal_likelihood_component(mixmod->components[ig_prime],mixmod);
-				
+		}
+		else
+		{
+			BLCA_add_to_component( comp_c, x, mixmod, 1 );
 		}
 	
 	}
@@ -124,6 +134,7 @@ int BLCA_update_allocations_with_gibbs(struct mix_mod *mixmod)
 	
 	free(probs);
 	free(order);
+	free(lpp_store);
 
 	//printf("\nleaving Gibbs...\n");
 	
@@ -186,9 +197,9 @@ int BLCA_update_allocations_with_metropolis_move_1(struct mix_mod *mixmod,int *a
 
 	*proposed += 1;
 
-	int i,ii,kk,j,k,g1,g2,ig1,ig2,ntot,*indexes,*proposed_alloc;
-	double p,log_acceptance,ag1=1.,ag2=1.;
-	struct component *component_g1,*component_g2;
+	int i, ii, kk, j, k, g1, g2, ig1, ig2, ntot, *indexes, *proposed_alloc, *x;
+	double p, log_acceptance, ag1=1., ag2=1.;
+	struct component *component_g1, *component_g2, *curr_component_g1, *curr_component_g2;
 	
 	/*the integers g1 and g2 give the components, and ig1 and ig2 their whereis value*/
 	/*the doubles ag1 and ag2 give the parameters to the Beta distribution for generating p_1
@@ -205,7 +216,10 @@ int BLCA_update_allocations_with_metropolis_move_1(struct mix_mod *mixmod,int *a
 	ig1 = mixmod->whereis[g1];
 	ig2 = mixmod->whereis[g2];
 	
-	ntot = mixmod->components[ig1]->n_g + mixmod->components[ig2]->n_g;
+	curr_component_g1 = mixmod->components[ig1];
+	curr_component_g2 = mixmod->components[ig2];
+	
+	ntot = curr_component_g1->n_g + curr_component_g2->n_g;
 	
 	/*DO NOT PERFORM THIS MOVE UNLESS ntot > 0*/
 	if(ntot == 0){
@@ -234,13 +248,6 @@ int BLCA_update_allocations_with_metropolis_move_1(struct mix_mod *mixmod,int *a
 		}
 	}
 	
-	/*check is ok*/
-	if(!(k==ntot)){
-		//mixmod_warning(2);
-		//printf("\nValue of k=%d and ntot = %d, g1 = %d, g2 = %d",k,ntot,g1,g2);
-		//for(i=0;i<mixmod->n;i++) printf("%d,",mixmod->z[i]);
-	}
-	
 	/*generate p and begin reallocation*/
 	p = rbeta(ag1,ag2);
 	
@@ -253,23 +260,19 @@ int BLCA_update_allocations_with_metropolis_move_1(struct mix_mod *mixmod,int *a
 	
 		ii = indexes[i];
 	
+		x = mixmod->Yobs[ii];
+	
 		if( runif(0.0,1.0) < p){
 		
 			/*reallocate to g1*/
 			proposed_alloc[i] = g1;
-			component_g1->n_g += 1;
-			for(j=0;j<mixmod->d;j++){
-				component_g1->N[j][ mixmod->Y[j][ii] ] += 1;
-			}
+			BLCA_add_to_component( component_g1, x, mixmod, 1 );
 			
 		}else{
 		
 			/*reallocate to g2*/
 			proposed_alloc[i] = g2;
-			component_g2->n_g += 1;
-			for(j=0;j<mixmod->d;j++){
-				component_g2->N[j][ mixmod->Y[j][ii] ] += 1;
-			}
+			BLCA_add_to_component( component_g2, x, mixmod, 1 );
 		
 		}		
 		
@@ -277,12 +280,15 @@ int BLCA_update_allocations_with_metropolis_move_1(struct mix_mod *mixmod,int *a
 	
 	/*evaluate log of acceptance probability*/
 	
+	if( mixmod->prior_type == 1 ) mixmod->component_compute = 0; 
+	//doesn't matter what this is set to as these moves are only for symmetric priors
+	
 	BLCA_recompute_marginal_likelihood_component(component_g1,mixmod);
 	BLCA_recompute_marginal_likelihood_component(component_g2,mixmod);
 	
-	log_acceptance = component_g1->log_prob + component_g2->log_prob - mixmod->components[ig1]->log_prob - mixmod->components[ig2]->log_prob
-	+lgamma(mixmod->alpha + mixmod->components[ig1]->n_g) + lgamma(mixmod->alpha + mixmod->components[ig2]->n_g) 
-			- lgamma(mixmod->alpha + component_g1->n_g) - lgamma(mixmod->alpha + component_g2->n_g);;
+	log_acceptance = component_g1->log_prob + component_g2->log_prob - curr_component_g1->log_prob - curr_component_g2->log_prob
+	+lgamma(mixmod->alpha + curr_component_g1->n_g) + lgamma(mixmod->alpha + curr_component_g2->n_g) 
+			- lgamma(mixmod->alpha + component_g1->n_g) - lgamma(mixmod->alpha + component_g2->n_g);
 	
 	//printf("\nThe value of log acceptance is %.10f,",log_acceptance);
 	
@@ -298,8 +304,8 @@ int BLCA_update_allocations_with_metropolis_move_1(struct mix_mod *mixmod,int *a
 		
 		/*copy over the accepted components*/
 		
-		BLCA_copy_component(component_g1,mixmod->components[ig1],mixmod);
-		BLCA_copy_component(component_g2,mixmod->components[ig2],mixmod);
+		BLCA_copy_component(component_g1, curr_component_g1, mixmod);
+		BLCA_copy_component(component_g2, curr_component_g2, mixmod);
 	
 	}
 	
@@ -312,8 +318,6 @@ int BLCA_update_allocations_with_metropolis_move_1(struct mix_mod *mixmod,int *a
 	
 	free(indexes);
 	free(proposed_alloc);
-
-	//printf("\nleaving Move 1...\n");
 	
 	return(TRUE);
 }
@@ -407,6 +411,8 @@ int BLCA_update_allocations_with_metropolis_move_2(struct mix_mod *mixmod,int *a
 	
 	/*compute the log acceptance probability*/
 	
+	if( mixmod->prior_type == 1 ) mixmod->component_compute =  0;
+	
 	BLCA_recompute_marginal_likelihood_component(component_g1,mixmod);
 	BLCA_recompute_marginal_likelihood_component(component_g2,mixmod);
 	
@@ -459,9 +465,9 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 	}
 
 	int i,ii,j,k,g1,g2,ig1,ig2,curr_n_g1,curr_n_g2,m,ntot,c=0,d = mixmod->d,identify_g1,identify_g2,id;
-	int *indexes,*order,*proposed_allocation;
-	double w,log_acceptance,log_transition_z_to_zprime=0.,log_transition_zprime_to_z=0.,l1,l2,p1,p2,max;
-	struct component *component_g1,*component_g2,*component_backward_g1,*component_backward_g2;
+	int *indexes,*order,*proposed_allocation,*x;
+	double w, log_acceptance, log_transition_z_to_zprime=0., log_transition_zprime_to_z=0., l1, l2, lp_curr_1, lp_curr_2, lp_prop_1, lp_prop_2, p1, p2, max;
+	struct component *component_g1, *component_g2, *curr_component_g1, *curr_component_g2;
 	
 	*proposed += 1;
 	
@@ -476,7 +482,10 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 	ig1 = mixmod->whereis[g1];
 	ig2 = mixmod->whereis[g2];
 	
-	ntot = mixmod->components[ig1]->n_g + mixmod->components[ig2]->n_g;
+	curr_component_g1 =  mixmod->components[ig1];
+	curr_component_g2 = mixmod->components[ig2];
+	
+	ntot = curr_component_g1->n_g + curr_component_g2->n_g;
 	
 	if(ntot == 0){
 		/*cannot perform if both components empty*/
@@ -496,9 +505,8 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 		}
 	}
 	
-	for(i=0;i<ntot;i++){
-		order[i] = i;
-	}
+	for(i=0;i<ntot;i++) order[i] = i;
+	
 	
 	/*shuffle the order*/
 	BLCA_random_ranshuffle(order,ntot);
@@ -519,19 +527,14 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 
 	k = order[0];
 	ii = indexes[k];
+	x = mixmod->Yobs[ii];
 	
 	if(/*gsl_rng_uniform(r) < 0.5*/mixmod->z[ii] == g1){
 	
 		/*put it into component_g1*/
 		
-		component_g1->n_g += 1;
-		
-		for(j=0;j<d;j++){
-			component_g1->N[j][ mixmod->Y[j][ii] ] += 1;
-		}
-		
-		//identify_g1 = mixmod->z[ii];
-	
+		BLCA_add_to_component( component_g1, x, mixmod, 1  );
+
 		proposed_allocation[0] = g1;
 		
 		log_transition_z_to_zprime = log(0.5) - log(1.);
@@ -540,12 +543,8 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 	
 		/*put it into component_g2*/
 		
-		component_g2->n_g += 1;
+		BLCA_add_to_component( component_g2, x, mixmod, 1 );
 		
-		for(j=0;j<d;j++){
-			component_g2->N[j][ mixmod->Y[j][ii] ] += 1;
-		}
-	
 		proposed_allocation[0] = g2;
 
 		log_transition_z_to_zprime = log(0.5) - log(1.);
@@ -556,6 +555,9 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 		...this allows the computing of the backwards probability*/
 	
 	log_transition_zprime_to_z += log(0.5) - log(1.);
+	
+	//BLCA_recompute_marginal_likelihood_component( component_g1, mixmod );
+	//BLCA_recompute_marginal_likelihood_component( component_g2, mixmod );
 		
 	
 	for(i=1;i<ntot;i++){
@@ -563,17 +565,34 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 		k = order[i];
 		ii = indexes[k];
 		
+		x = mixmod->Yobs[ii];
+		
 		/*do the proposed component values, then sample and make changes*/
+		
+		/*lp_curr_1 = component_g1->log_prob;
+		lp_curr_2 = component_g2->log_prob;
+		
+		BLCA_add_to_component( component_g1, x, mixmod, 1 );
+		lp_prop_1 = BLCA_return_log_marginal_likelihood_component( component_g1, mixmod );
+		
+		
+		BLCA_add_to_component( component_g2, x, mixmod, 2 );
+		lp_prop_2 = BLCA_return_log_marginal_likelihood_component( component_g2, mixmod );
+		
+		l1 = lp_prop_1 + lp_curr_1;
+		l2 = lp_curr_1 + lp_prop_2; */
 		
 		/*compute probability generated from g1*/
 		
-		l1 = BLCA_compute_log_data_probability_with_inclusion_in_component(mixmod->Yobs[ii],component_g1,mixmod)
-				+ BLCA_compute_log_data_probability_component(component_g2,mixmod);
+		//l1 = BLCA_return_log_marginal_likelihood_component( component_g1 )
+		
+		l1 = BLCA_compute_log_data_probability_with_inclusion_in_component( x ,component_g1,mixmod)
+			+ BLCA_compute_log_data_probability_component(component_g2,mixmod);
 		
 		l2 = BLCA_compute_log_data_probability_component(component_g1,mixmod)
-				+ BLCA_compute_log_data_probability_with_inclusion_in_component(mixmod->Yobs[ii],component_g2,mixmod);
+				+ BLCA_compute_log_data_probability_with_inclusion_in_component( x ,component_g2,mixmod);
 		
-		w = ((mixmod->alpha + component_g1->n_g)/(mixmod->alpha + component_g2->n_g))*exp(l1-l2);
+		w = ((mixmod->alpha + component_g1->n_g)/(mixmod->alpha + component_g2->n_g)) * exp( l1 - l2 );
 		
 		p1 = w/(1.+w);
 		
@@ -583,29 +602,35 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 		
 			/*put it in g1*/
 			
-			component_g1->n_g += 1;
+			BLCA_add_to_component( component_g1, x, mixmod, 1 );
+			
+			/*component_g1->n_g += 1;
 			
 			for(j=0;j<d;j++){
 				component_g1->N[j][ mixmod->Y[j][ii] ] += 1;
-			}
+			}*/
 			
-			if(!(mixmod->z[ii] == g1)){
+			if( mixmod->z[ii] != g1 ){
 				log_transition_z_to_zprime += log(p1);
 				log_transition_zprime_to_z += log(1.-p1);
 			}
 			
 			proposed_allocation[i] = g1;
 			
+			//component_g1->log_prob = lp_prop_1 ;
+			
 		}else{
 		
 		
 			/*put it in g2*/
 			
-			component_g2->n_g += 1;
+			BLCA_add_to_component( component_g2, x, mixmod, 1 );
+			
+			/*component_g2->n_g += 1;
 			
 			for(j=0;j<d;j++){
 				component_g2->N[j][ mixmod->Y[j][ii] ] += 1;
-			}
+			}*/
 			
 			if(!(mixmod->z[ii] == g2)){
 				log_transition_z_to_zprime += log(1.-p1);
@@ -613,6 +638,8 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 			}
 		
 			proposed_allocation[i] = g2;
+			
+			//component_g2->log_prob = lp_prop_2 ;
 		}
 		
 	}
@@ -624,7 +651,7 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 	BLCA_recompute_marginal_likelihood_component(component_g2,mixmod);
 	
 	log_acceptance = component_g1->log_prob + component_g2->log_prob 
-						- mixmod->components[ig1]->log_prob - mixmod->components[ig2]->log_prob
+						- curr_component_g1->log_prob - curr_component_g2->log_prob
 						+ log_transition_zprime_to_z - log_transition_z_to_zprime;
 	
 	//printf("\n%.4f \t %.4f \t %.4f ",log_acceptance,log_transition_zprime_to_z,log_transition_z_to_zprime );
@@ -637,8 +664,8 @@ int BLCA_update_allocations_with_metropolis_move_3(struct mix_mod *mixmod,int *a
 		
 		/*allocations first*/
 	
-		BLCA_copy_component(component_g1,mixmod->components[ig1],mixmod);
-		BLCA_copy_component(component_g2,mixmod->components[ig2],mixmod);
+		BLCA_copy_component(component_g1, curr_component_g1, mixmod);
+		BLCA_copy_component(component_g2, curr_component_g2, mixmod);
 		
 		
 		for(i=0;i<ntot;i++){

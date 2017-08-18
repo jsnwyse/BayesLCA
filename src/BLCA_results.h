@@ -73,6 +73,8 @@ struct results
 
 void BLCA_allocate_results(struct results *results,int iterations,int burn_in,int thin_by,int len,int d) ;
 
+void BLCA_reset_results(struct results *results);
+
 void BLCA_free_results(struct results *results,int iterations,int burn_in,int thin_by) ;
 
 void BLCA_allocate_results_x2(struct results *results,int iterations,int burn_in,int thin_by,int len,int d,int writeToFile) ;

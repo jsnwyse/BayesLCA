@@ -14,7 +14,7 @@
 	
 #include "BLCA_variable_selection.h"
 
-void BLCA_update_model_by_variable_include_exclude(struct mix_mod *mixmod, int *accepted,int *proposed,int var)
+void BLCA_update_model_by_variable_include_exclude_old(struct mix_mod *mixmod, int *accepted,int *proposed,int var)
 {
   
 	int i,j,S=0,D=0,Sn,Dn;
@@ -80,13 +80,14 @@ void BLCA_update_model_by_variable_include_exclude(struct mix_mod *mixmod, int *
 	for(i=0;i<mixmod->G;i++){
 		logprobs[i] = mixmod->components[ mixmod->whereis[i] ]->log_prob;
 		lp_current += logprobs[i];
+		mixmod->component_compute = i ;
 		BLCA_recompute_marginal_likelihood_component(mixmod->components[ mixmod->whereis[i] ],mixmod);
 		lp_proposed += mixmod->components[ mixmod->whereis[i] ]->log_prob;
 	}	
 	
 	logprob_undiscriminating = mixmod->undiscriminating->log_prob;
 	
-	BLCA_recompute_marginal_likelihood_undiscriminating_variables(mixmod->undiscriminating,mixmod);
+	BLCA_recompute_marginal_likelihood_undiscriminating_variables( mixmod->undiscriminating, mixmod );
 	
 	logratio = lp_proposed - lp_current + mixmod->undiscriminating->log_prob - logprob_undiscriminating + l_ratio_prior_variable_inclusion;
 	

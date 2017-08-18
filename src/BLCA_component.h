@@ -24,6 +24,8 @@ void BLCA_free_component(struct component *component,struct mix_mod *mixmod) ;
 
 void BLCA_copy_component(struct component *component_original,struct component *component_target,struct mix_mod *mixmod) ;
 
+void BLCA_add_to_component( struct component *component, int *x, struct mix_mod *mixmod, int sgn ) ;
+
 void BLCA_recompute_sufficient_statistics_for_components(struct mix_mod *mixmod) ;
 
 double BLCA_compute_log_data_probability_with_inclusion_in_component(int *x,struct component *component,struct mix_mod *mixmod) ;
@@ -32,7 +34,11 @@ double BLCA_compute_log_marginal_likelihood_with_inclusion_in_component(int *x,s
 
 double BLCA_compute_log_data_probability_component(struct component *component,struct mix_mod *mixmod) ;
 
+double BLCA_return_log_marginal_likelihood_component( struct component *component, struct mix_mod *mixmod );
+
 void BLCA_recompute_marginal_likelihood_component(struct component *component,struct mix_mod *mixmod) ;
+
+double BLCA_return_marginal_likelihood_undiscriminating_variables(struct component *undiscriminating,struct mix_mod *mixmod);
 
 void BLCA_recompute_marginal_likelihood_undiscriminating_variables(struct component *undiscriminating,struct mix_mod *mixmod) ;
 

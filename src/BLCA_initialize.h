@@ -22,10 +22,14 @@ void BLCA_set_prior_on_number_of_components(struct mix_mod *mixmod,int type) ;
 
 void BLCA_initialize_data( struct mix_mod *mixmod, int *Y );
 
-int BLCA_initialize_simple(struct mix_mod *mixmod,int numgroups) ;
+void BLCA_initialize_priors( struct mix_mod *mixmod, double *alpha_prior, double *beta_prior, int type );
 
-void BLCA_initialize_EM( struct mix_mod *mixmod , double *group_weights, double *prob_variables) ;
+void BLCA_initialize_Gibbs_sampler( int init_type, struct mix_mod *mixmod ) ;
 
-void BLCA_initialize_VB( struct mix_mod *mixmod , double *alpha_ud, double *beta_ud );
+void BLCA_initialize_EM( int init_type, double *init_vals, struct mix_mod *mixmod , double *group_weights, double *prob_variables) ;
+
+void BLCA_initialize_VB( int init_type, double *init_vals, struct mix_mod *mixmod , double *alpha_ud, double *beta_ud );
+
+void BLCA_initialize_Boot( struct mix_mod *mixmod, double *group_weights, double *prob_variables  );
 
 #endif

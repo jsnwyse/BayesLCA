@@ -77,9 +77,15 @@ struct mix_mod
 	
 	/*other hyperparameters*/
 	
+	int prior_type; //this will tell us whether prior is identifiable or not- which computation to do
+	
+	double *alpha_prior; // vector of prior on weights
+	
+	double ***beta_prior; // array (possibly varying in size) of Dirichlet prior on weights 
+	
 	double alpha; /*alpha: dirichlet prior on weights symmetric*/
 	
-	double beta; /*delta: dirichlet prior on the category probabilities symmetric*/
+	double beta; /*beta: dirichlet prior on the category probabilities symmetric*/
 	
 	double prior_prob_variable_include; /*prior probability of inclusion of any of the variables*/ 
 	
@@ -102,13 +108,23 @@ struct mix_mod
 	
 	double log_like;
 	
+	double log_prior;
+	
 	FILE *fp_log; /*file pointer for the debugger log*/
 	
 	int EM_fit ;
 	
 	int EM_MAP; /*find the map in an EM fit?*/ 
 	
+	//int EM_SMALL_PROB_WARNING;
+	
 	int VB;
+	
+	int BOOT;
+	
+	int *boot_idx;
+	
+	int component_compute; // the component currently being computed
 
 };
 
@@ -124,7 +140,9 @@ struct mix_mod
 
 
 struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,
- double *prior_hparams, int *ncat, int collapsed, int EM_fit, int EM_MAP, int VB ) ;
+ double *prior_hparams, int *ncat, int collapsed, int EM_fit, int EM_MAP, int VB, int BOOT ) ;
+
+struct mix_mod *BLCA_clone_mixmod( struct mix_mod *mixmod );
 
 void BLCA_free_mixmod(struct mix_mod *mixmod) ;
 

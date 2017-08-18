@@ -93,12 +93,34 @@ void BLCA_copy_component(struct component *component_original,struct component *
 			component_target->N[i][j] = component_original->N[i][j];
 		}
 	}
+	
+	if( !mixmod->collapsed )
+	{
+		for( i=0; i<mixmod->d; i++ )
+		{
+			for( j=0; j<mixmod->ncat[i]; j++ )
+				component_target->prob_variables[i][j] = component_original->prob_variables[i][j];
+		}
+	}
 
 	component_target->log_prob = component_original->log_prob;
 	
 	return;
 
 }
+
+
+void BLCA_add_to_component( struct component *component, int *x, struct mix_mod *mixmod, int sgn )
+{
+	int c, j;
+	
+	component->n_g += sgn ;
+	
+	for( j=0; j<mixmod->d; j++ ) component->N[j][ x[j] ] += sgn ;
+	
+	return;
+}
+
 
 void BLCA_recompute_sufficient_statistics_for_components(struct mix_mod *mixmod)
 {
@@ -145,31 +167,55 @@ void BLCA_recompute_sufficient_statistics_for_components(struct mix_mod *mixmod)
 double BLCA_compute_log_data_probability_with_inclusion_in_component(int *x,struct component *component,struct mix_mod *mixmod)
 {
 
-	int i,j,I;
-	double log_prob = 0.;
+	int i,j,c,I,k=mixmod->component_compute;
+	double log_prob = 0., s, *beta;
 	
-	for(j=0;j<mixmod->d;j++){
+	if( mixmod->prior_type == 0 )
+	{
 	
-		if(mixmod->varindicator[j]){
+		for(j=0;j<mixmod->d;j++){
 	
-			log_prob += lgamma(mixmod->ncat[j] * mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta) - lgamma( component->n_g+1. + mixmod->ncat[j]*mixmod->beta );
+			if(mixmod->varindicator[j]){
+	
+				log_prob += lgamma(mixmod->ncat[j] * mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta) - lgamma( component->n_g+1. + mixmod->ncat[j]*mixmod->beta );
 		
-			for(i=0;i<mixmod->ncat[j];i++){
+				for(i=0;i<mixmod->ncat[j];i++){
 		
-				I = (x[j] == i) ?  1 : 0 ;
+					I = (x[j] == i) ?  1 : 0 ;
 		
-				log_prob += lgamma(component->N[j][i] + I + mixmod->beta);
+					log_prob += lgamma(component->N[j][i] + I + mixmod->beta);
+		
+				}
 		
 			}
 		
 		}
+	
+	}else if( mixmod->prior_type == 1 ){
 		
+		for( j=0; j<mixmod->d; j++ ){
+			
+			if( mixmod->varindicator[j]){
+			
+				s =  0.; 
+				
+				beta = mixmod->beta_prior[k][j] ;
+				
+				for( c=0; c<mixmod->ncat[j]; c++ ){
+					
+					I = (x[j] == c) ? 1 : 0 ;
+					log_prob += lgamma( component->N[j][c] + I + beta[c] ) - lgamma( beta[c] ) ;
+					
+					s += beta[c] ;
+				}
+				
+				log_prob += lgamma(s) - lgamma( component->n_g + 1. + s ) ; 
+			
+			}
+		
+		}
+	
 	}
-
-	/*if(isnan(log_prob)){
-		mixmod_warning(1);
-		printf("\nFrom compute_log_data_probability_with_inclusion_in_component. Result = %.10f,n_g = %d\n,sum_sq_norm = %.10f,sq_norm = %.10f",sum_sq_norm - sq_norm/(component->n_g+kappa) + kappa*xi2 + gamma,component->n_g,sum_sq_norm,sq_norm);
-	}*/
 
 	return(log_prob);
 }
@@ -205,29 +251,56 @@ double BLCA_compute_log_marginal_likelihood_with_inclusion_in_component(int *x,s
 }
 
 
-
-
-
 double BLCA_compute_log_data_probability_component(struct component *component,struct mix_mod *mixmod)
 {
 
-	int i,j;
-	double log_prob = 0.;
-
-	for(j=0;j<mixmod->d;j++){
+	int i,j,c,k=mixmod->component_compute;
+	double log_prob = 0., s, *beta;
 	
-		if(mixmod->varindicator[j]){
+	if( mixmod->prior_type ==  0 )
+	{
+	
+		for(j=0;j<mixmod->d;j++){
+	
+			if(mixmod->varindicator[j]){
 		
-			log_prob += lgamma(mixmod->ncat[j] * mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta) - lgamma(component->n_g + mixmod->ncat[j]*mixmod->beta );
+				log_prob += lgamma(mixmod->ncat[j] * mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta) - lgamma(component->n_g + mixmod->ncat[j]*mixmod->beta );
 		
-			for(i=0;i<mixmod->ncat[j];i++){
+				for(i=0;i<mixmod->ncat[j];i++){
 		
-				log_prob += lgamma(component->N[j][i] + mixmod->beta);
+					log_prob += lgamma(component->N[j][i] + mixmod->beta);
+		
+				}
 		
 			}
 		
 		}
+	
+	}else if( mixmod->prior_type == 1 ){
+	
 		
+		for( j=0; j<mixmod->d; j++ ){
+		
+			if( mixmod->varindicator[j] ){
+			
+				s = 0.;
+				
+				beta = mixmod->beta_prior[k][j];
+				
+				for( c=0; c<mixmod->ncat[j]; c++ ){
+					
+					log_prob += lgamma( component->N[j][c] + beta[c] ) - lgamma( beta[c] ) ;
+					
+					s += beta[c] ;
+				}
+				
+				log_prob += lgamma(s) - lgamma( component->n_g + 1. + s ) ; 
+			
+			}
+		
+		}
+	
+	
 	}
 	
 	/*if(isnan(log_prob)){
@@ -240,39 +313,77 @@ double BLCA_compute_log_data_probability_component(struct component *component,s
 
 }
 
-
-void BLCA_recompute_marginal_likelihood_component(struct component *component,struct mix_mod *mixmod)
+double BLCA_return_log_marginal_likelihood_component( struct component *component, struct mix_mod *mixmod )
 {
-	/*computing these quantities will save some time for the Gibbs update of the labels*/
-	int i,j;
-	double log_prob;
+	// these quantities will save some time for the Gibbs update of the labels
+	int i,j,c, k, wis_k;
+	double log_prob, s, r, a, *beta;
 	
-	log_prob = lgamma(component->n_g+mixmod->alpha);
+	if( mixmod->prior_type == 0 )
+	{
 	
-	if(component->n_g > 0){
+		log_prob = lgamma(component->n_g+mixmod->alpha);
 	
-		for(j=0;j<mixmod->d;j++){
+		if(component->n_g > 0){
+	
+			for(j=0;j<mixmod->d;j++){
 		
-			if(mixmod->varindicator[j]){
+				if(mixmod->varindicator[j]){
 			
-				log_prob += lgamma(mixmod->ncat[j] *mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta) - lgamma(component->n_g + mixmod->ncat[j]*mixmod->beta);
+					log_prob += lgamma(mixmod->ncat[j] *mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta) - lgamma(component->n_g + mixmod->ncat[j]*mixmod->beta);
 			
-				for(i=0;i<mixmod->ncat[j];i++){
+					for(i=0;i<mixmod->ncat[j];i++){
 			
-					log_prob += lgamma(component->N[j][i] + mixmod->beta);
+						log_prob += lgamma(component->N[j][i] + mixmod->beta);
+			
+					}
 			
 				}
 			
 			}
-			
+		
+		}	
+		
+	}else if( mixmod->prior_type == 1 ){
+	
+		k = mixmod->component_compute;
+		
+		log_prob = lgamma( component->n_g + mixmod->alpha_prior[k] ) /*- lgamma( mixmod->alpha_prior[k] )*/  ;
+		
+		if(component->n_g > 0){
+	
+			for(j=0;j<mixmod->d;j++){
+		
+				if(mixmod->varindicator[j]){
+				
+					s = 0.; r = 0.;
+					beta = mixmod->beta_prior[k][j] ;
+					for( c=0; c<mixmod->ncat[j]; c++ )
+					{
+						a = component->N[j][c] + beta[c] ;
+						log_prob += lgamma( a ) - lgamma( beta[c] ) ;
+						s += a ;
+						r += beta[c] ; 
+					}
+					log_prob += lgamma(r) - lgamma(s) ;
+					
+				}	
+			}
+		
 		}
 		
+	
 	}
 	
-	/*if(isnan(log_prob)){
-		mixmod_warning(1);
-		printf("\nFrom recompute_marginal_likelihood_component\n");
-	}*/
+	return( log_prob );
+	
+}
+
+
+void BLCA_recompute_marginal_likelihood_component(struct component *component,struct mix_mod *mixmod)
+{
+
+	double log_prob = BLCA_return_log_marginal_likelihood_component( component, mixmod );
 	
 	component->log_prob = log_prob;
 
@@ -280,34 +391,61 @@ void BLCA_recompute_marginal_likelihood_component(struct component *component,st
 }
 
 
-void BLCA_recompute_marginal_likelihood_undiscriminating_variables(struct component *undiscriminating,struct mix_mod *mixmod)
+double BLCA_return_marginal_likelihood_undiscriminating_variables(struct component *undiscriminating,struct mix_mod *mixmod)
 {
 
 	int i,j;
-	double log_prob;
+	double log_prob, s=0., r=0., *beta;
 	
 	log_prob = 0.;
 	
-	for(j=0;j<mixmod->d;j++){
+	if( mixmod->prior_type == 0 )
+	{
 	
-		if(!mixmod->varindicator[j]){ /*variables not in mixture model*/
+		for(j=0;j<mixmod->d;j++){
+	
+			if(!mixmod->varindicator[j]){ /*variables not in mixture model*/
 		
-			log_prob += lgamma(mixmod->ncat[j]*mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta) - lgamma(undiscriminating->n_g + mixmod->ncat[j]*mixmod->beta);
+				log_prob += lgamma(mixmod->ncat[j]*mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta) - lgamma(undiscriminating->n_g + mixmod->ncat[j]*mixmod->beta);
 			
-			for(i=0;i<mixmod->ncat[j];i++){
+				for(i=0;i<mixmod->ncat[j];i++){
 			
-				log_prob += lgamma(undiscriminating->N[j][i] + mixmod->beta);
+					log_prob += lgamma(undiscriminating->N[j][i] + mixmod->beta);
 			
+				}
+		
 			}
 		
+		}
+	
+	}else if( mixmod->prior_type == 1 ){
+		
+		for( j=0; j<mixmod->d; j++ ){
+			
+			if(!mixmod->varindicator[j]){
+				s=0.; r=0.;
+				beta = mixmod->beta_prior[0][j];
+				
+				for( i=0; i<mixmod->ncat[j]; i++ ){
+					r += undiscriminating->N[j][i] + beta[i] ;
+					log_prob += lgamma( undiscriminating->N[j][i] + beta[i] ) - lgamma( beta[i] );
+					s +=  beta[i] ;
+				}	
+				log_prob += lgamma(s) - lgamma(r) ; 
+			}
+			
 		}
 		
 	}
 	
-	undiscriminating->log_prob = log_prob;
+	return(log_prob);
 	
+}
+
+void BLCA_recompute_marginal_likelihood_undiscriminating_variables(struct component *undiscriminating,struct mix_mod *mixmod)
+{
+	undiscriminating->log_prob = BLCA_return_marginal_likelihood_undiscriminating_variables( undiscriminating, mixmod );
 	return;
-	
 }
 
 
