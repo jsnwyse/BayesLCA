@@ -2,30 +2,14 @@ blca.em <-
 function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","across"), counts.n=NULL, model.indicator=NULL, iter=1000, restarts=5, verbose=TRUE, sd=FALSE, se=sd, conv=1e-6, small=1e-100, MAP=TRUE, pars.init=NULL, for.boot=FALSE )
 {
 	
-	if( class(X) == "data.blca" || !is.null(counts.n) )
-	{
-		if( class(X) == "data.blca" ) 
-		{
-			z <- X$counts.n
-			Y <- X$data 
-		}else{ 
-			z <- counts.n
-			Y <- as.matrix(X)
-		}
-		
-		U <- matrix( rep( Y[1,], z[1] ) , nrow=z[1], byrow=TRUE )
-		for( k in 2:length(z) )
-		{
-			U <- rbind( U, matrix( rep( Y[k,], z[k] ) , nrow=z[k], byrow=TRUE ) )
-		}
-		X <- as.matrix(U)
-	}else{
-		X <- as.matrix(X)
-	}
+	# convert X into a numeric matrix and check inputs
+	D <- blca.check.data( X, counts.n, ncat )
+	
+	X <- D$X
+	ncat <- D$ncat
 
 	N<-nrow(X) 
-	M<-ncol(X) 
-	
+	M<-ncol(X)
 	
 	if( is.null(model.indicator) )
 	{
@@ -33,28 +17,6 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	}else if( length(model.indicator) != M ){
 		stop("model.indicator must have length ncol(X)")
 	}
-	
-	#check that matrix is binary and/or n.categories is passed
-	if( is.null(ncat) ){
-		if( !all( X[X>0]==1) ){
-			stop("A matrix other than binary must have non-null ncat vector" )
-		} else {
-			#matrix is binary
-			ncat <- rep( 2, M )
-		}
-	}
-
-	t <- apply( X, 2, min )
-	if( sum(t) > 0 ) stop("Please recode categories from 0, ..., num cat-1  to use blca.em")
-	t <- apply( X, 2, max )
-	if( sum( t + 1 - ncat ) > 0 ) stop("Number of categories in X exceeds ncat please recode categories from 0, ..., num cat-1")
-		
-
-	## safety checks ##
-	
-	if(length(ncat)!= M){
-		stop("The length of ncat must be ncol(X)")
-	}	
 	
 	prior.init.type <- 1
 	
