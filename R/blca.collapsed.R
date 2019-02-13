@@ -3,50 +3,16 @@ blca.collapsed <- function( X,  G, ncat=NULL , alpha=1, beta=1, delta=1, start.v
 
 	t1 <- proc.time()
 	
-	if( class(X) == "data.blca" || !is.null(counts.n) )
-	{
-		if( class(X) == "data.blca" ) 
-		{
-			z <- X$counts.n
-			Y <- X$data 
-		}else{ 
-			z <- counts.n
-			Y <- as.matrix(X)
-		}
-		
-		U <- matrix( rep( Y[1,], z[1] ) , nrow=z[1], byrow=TRUE )
-		for( k in 2:length(z) )
-		{
-			U <- rbind( U, matrix( rep( Y[k,], z[k] ) , nrow=z[k], byrow=TRUE ) )
-		}
-		X <- as.matrix(U)
-	}else{
-		X <- as.matrix(X)
-	}
+	# convert X into a numeric matrix and check inputs
+	D <- blca.check.data( X, counts.n, ncat )
+	
+	X <- D$X
+	ncat <- D$ncat
 
 	N <- nrow(X)
 	M <- ncol(X)
 	
-	#check that matrix is binary and/or n.categories is passed
-	if( is.null(ncat) ){
-		if( !all( X[X>0]==1) ){
-			stop("A matrix other than binary must have non-null ncat vector" )
-		} else {
-			#matrix is binary
-			ncat <- rep( 2, M )
-		}
-	}
-	
-	t <- apply( X, 2, min )
-	if( sum(t) > 0 ) stop("Please recode categories from 0, ..., num cat-1  to use blca.collapsed")
-	t <- apply( X, 2, max )
-	if( sum( t + 1 - ncat ) > 0 ) stop("Number of categories in X exceeds ncat please recode categories from 0, ..., ncat-1")
-	
 	## safety checks ##
-	
-	if(length(ncat)!= M){
-		stop("The length of ncat must be the same as the number of records per observation\n")
-	}	
 	
 	#if( length(alpha) > 1 ) stop("alpha value must be a positive scalar when using collapsed sampler \n")
 	#if( length(beta) > 1 ) stop("beta value must be a positive scalar when using collapsed sampler \n")
