@@ -2,46 +2,21 @@ blca.boot <-
 function(X, G, ncat=NULL, alpha=1,beta=1, delta=1, start.vals= c("single","across"), counts.n=NULL, model.indicator=NULL, fit=NULL, iter=50,  B=100, relabel=FALSE, verbose=TRUE, verbose.update=10, small=1e-100, MAP=TRUE)
 {
 
-	if( class(X) == "data.blca" || !is.null(counts.n) )
-	{
-		if( class(X) == "data.blca" ) 
-		{
-			z <- X$counts.n
-			Y <- X$data 
-		}else{ 
-			z <- counts.n
-			Y <- as.matrix(X)
-		}
-		
-		U <- matrix( rep( Y[1,], z[1] ) , nrow=z[1], byrow=TRUE )
-		for( k in 2:length(z) )
-		{
-			U <- rbind( U, matrix( rep( Y[k,], z[k] ) , nrow=z[k], byrow=TRUE ) )
-		}
-		X <- as.matrix(U)
-	}else{
-		X <- as.matrix(X)
-	}
+	# convert X into a numeric matrix and check inputs
+	D <- blca.check.data( X, counts.n, ncat )
+	
+	X <- D$X
+	ncat <- D$ncat
 
 	N<-nrow(X) 
 	M<-ncol(X) 
-
-	#check that matrix is binary and/or n.categories is passed
-	if( is.null(ncat) ){
-		if( !all( X[X>0]==1) ){
-			stop("A matrix other than binary must have non-null ncat vector" )
-		} else {
-			#matrix is binary
-			ncat <- rep( 2, M )
-		}
-	}
-
-	t <- apply( X, 2, min )
-	if( sum(t) > 0 ) stop("Please recode categories from 0, ..., ncat-1  to use blca.collapsed")
-	t <- apply( X, 2, max )
-	if( sum( t + 1 - ncat ) > 0 ) stop("Number of categories in X exceeds ncat please recode categories from 0, ..., num cat-1")
 	
-	if( is.null(model.indicator) ) model.indicator <- rep(1,M)	
+	if( is.null(model.indicator) )
+	{
+		model.indicator <- rep(1,M)
+	}else if( length(model.indicator) != M ){
+		stop("model.indicator must have length ncol(X)")
+	}
 	
 	if(is.null(fit)){
 		if(verbose==TRUE) cat("Object 'fit' not supplied. Obtaining starting values via blca.em...\n")
