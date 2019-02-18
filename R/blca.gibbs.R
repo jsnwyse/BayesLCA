@@ -3,119 +3,27 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 
 	t1 <- proc.time()
 
-	if( class(X) == "data.blca" || !is.null(counts.n) )
+	# convert X into a numeric matrix and check inputs
+	D <- blca.check.data( X, counts.n, ncat )
+	
+	X <- D$X
+	ncat <- D$ncat
+
+	N<-nrow(X) 
+	M<-ncol(X)
+	
+	if( is.null(model.indicator) )
 	{
-		if( class(X) == "data.blca" ) 
-		{
-			z <- X$counts.n
-			Y <- X$data 
-		}else{ 
-			z <- counts.n
-			Y <- as.matrix(X)
-		}
-		
-		U <- matrix( rep( Y[1,], z[1] ) , nrow=z[1], byrow=TRUE )
-		for( k in 2:length(z) )
-		{
-			U <- rbind( U, matrix( rep( Y[k,], z[k] ) , nrow=z[k], byrow=TRUE ) )
-		}
-		X <- as.matrix(U)
-	}else{
-		X <- as.matrix(X)
+		model.indicator <- rep(1,M)
+	}else if( length(model.indicator) != M ){
+		stop("model.indicator must have length ncol(X)")
 	}
-
-	N <- nrow(X)
-	M <- ncol(X)
 	
-	#check that matrix is binary and/or n.categories is passed
-	if( is.null(ncat) ){
-		if( !all( X[X>0]==1) ){
-			stop("A matrix other than binary must have non-null ncat vector" )
-		} else {
-			#matrix is binary
-			ncat <- rep( 2, M )
-		}
-	}
-
-	t <- apply( X, 2, min )
-	if( sum(t) > 0 ) stop("Please recode categories from 0, ..., ncat-1  to use blca.collapsed")
-	t <- apply( X, 2, max )
-	if( sum( t + 1 - ncat ) > 0 ) stop("Number of categories in X exceeds ncat please recode categories from 0, ..., num cat-1")
-		
-
-	## safety checks ##
+	out.prior <- blca.check.prior( alpha, beta, delta, G, M, ncat )
+	prior.init.type <- out.prior$prior.init.type
+	gamma <- out.prior$gamma
+	delta <- out.prior$delta
 	
-	if(length(ncat)!= M){
-		stop("The length of ncat must be the same as the number of records per observation\n")
-	}	
-	
-	prior.init.type <- 1
-	
-	# delta is the prior on the group weights
-	if( length(delta) == 1 ) delta<- rep(delta,G)
-	if( length(delta) != G ) stop("delta prior is wrong length (i.e., != 1 or G)")
-	
-	# alpha either acts only as the first category prior for binary, or the entire prior for multicategory case
-	if( !is.matrix(alpha) && !any(ncat > 2) ){
-	if( any(length(alpha)==c(1,G)) ){
-		alpha <- matrix(alpha,G,M)
-	}else{
-		if(length(alpha)==M){
-			# this is ok as there is a different alpha for each variable but the same across groups
-			alpha <- matrix( alpha, G, M, byrow=TRUE)
-			} else {
-			 	if( length(alpha) == G*sum(ncat) && beta==1 ){
-			 		if( !any( ncat > 2 ) ) warning("Using only entries in alpha to assign prior for sampling")
-			 		# pass alpha directly, this looks ok
-			 		prior.init.type <- 2
-			 	}else stop("Item probability prior improperly specified.")
-			}
-		}
-	} 
-	
-	if( is.matrix(beta) && any( ncat > 2 ) ) stop("Item probability prior improperly specified. Please use alpha to specify the prior." )
-	
-	# beta either acts only as the first category prior for binary 
-	if( !is.matrix(beta) ){
-	if( any(length(beta)==c(1,G)) ){
-		beta <- matrix(beta,G,M)
-	}else{
-		if(length(beta)==M){
-			beta <- matrix( beta, G, M, byrow=TRUE )
-			} else {
-			 	if( length(beta) == G*sum(ncat) && alpha==1 ){
-			 		stop("Item probability prior improperly specified. For varying numbers of categories, use alpha to specify the prior.")
-			 	}else stop("Item probability prior improperly specified.")
-			}
-		}
-	} 
-	
-	if( !any( ncat > 2 ) )
-	{
-		if( !all(dim(alpha) == c(G,M)) ) stop("alpha has not been specified with the correct dimensions")
-		if( !all( dim(beta) == c(G,M) ) ) stop("beta has not been specified with the correct dimensions")
-		# now restack the alpha and beta matrices into compatible format
-		gamma <- matrix( nrow=2*G, ncol=M )	
-		for( k in 1:G ) 
-		{
-			gamma[ 2*(k-1) + (1:2) ,  ] <- rbind( alpha[k,], beta[k,] )
-		}
-		prior.init.type <- 2
-	}else{
-		if( length(alpha) == 1 ){
-			prior.init.type <- 1
-			gamma <- rep( alpha, G*sum(ncat) )
-		}else{
-			if( length(alpha) == sum(ncat) ) 
-			{
-				gamma <- rep( alpha, G )
-			}else if( length(alpha) == G*sum(ncat) ){
-				gamma <- alpha
-			}else{
-				stop("alpha provided is not of a compatible length. Please check and rerun.")
-			}
-		}
-	}
 	
 	if( is.character(start.vals[1]) ) 
 	{
@@ -140,8 +48,6 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 	weights <- numeric(stored*G)
 	variable.probs <- numeric(stored*G*sum(ncat))
 	log.post <- numeric( stored )
-	
-	if( is.null(model.indicator) ) model.indicator <- rep(1,M) #modify this later to allow for flexible model specification
 
 	hparam <- c( delta[1], beta[1] )
 	
@@ -186,23 +92,27 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 	
 	weights.mat <- matrix( w$weights , nrow=stored, ncol=G, byrow=TRUE )
 
-	if( relabel ) relabelled <- undo.label.switching( membership.mat, rep(G, stored) )
-	
-	#post processed weights and probabilities
-	
-	for( k in 1:stored )
+	if( relabel ) 
 	{
-		weights.mat[ k, ] <- weights.mat[ k, relabelled$permutation[k,1:G] ]
-		l <- 1
-		for( j in 1:M  )
-		{
-			it <- (k-1)*G
-			if( model.indicator[j] )
-			{
-				var.probs.l[[l]][ it + 1:G , ] = var.probs.l[[l]][ it + relabelled$permutation[ k, 1:G ] , ]
-				l <- l+1
-			}
-		}
+	  relabelled <- undo.label.switching( membership.mat, rep(G, stored) )
+	
+  	#post processed weights and probabilities
+  	
+  	for( k in 1:stored )
+  	{
+  		weights.mat[ k, ] <- weights.mat[ k, relabelled$permutation[k,1:G] ]
+  		l <- 1
+  		for( j in 1:M  )
+  		{
+  			it <- (k-1)*G
+  			if( model.indicator[j] )
+  			{
+  				var.probs.l[[l]][ it + 1:G , ] = var.probs.l[[l]][ it + relabelled$permutation[ k, 1:G ] , ]
+  				l <- l+1
+  			}
+  		}
+  	}
+	  
 	}
 	
 	v.probs <- list( mean=list(), sd=list() )
@@ -269,7 +179,7 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 	} else { 
 	  # rearrange for backwards compatibility with plotting functions
 	  x$itemprob <- matrix(vec.itemprobs[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), names(x$itemprob)))
-	  x$itemprob.sd <- matrix(vec.itemprobs.sd[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), names(x$itemprob)))
+	  x$itemprob.sd <- matrix(vec.itemprobs.sd[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), colnames(x$itemprob)))
 	  M.in <- sum(model.indicator)
 	  arr <- array( dim=c(stored,G,M.in) )
 	  for( m in 1:M.in ) 
