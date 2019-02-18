@@ -32,6 +32,8 @@ blca.check.data <- function( X, counts.n, ncat )
 		Y <- matrix( nrow=N, ncol=M )
 		colnames(Y) <- colnames(X) 
 		
+		# ---- this is not working properly ---- # 
+		
 		if( is.data.frame(X) )
 		{
 			isfact <- unlist( lapply( X, is.factor ) )
@@ -41,14 +43,18 @@ blca.check.data <- function( X, counts.n, ncat )
 			{
 				warning("X is a data frame: factor levels converted to integers")
 				levs <- levels( X[,k] )
-				for( j in 1:length(levs) ) Y[ X[,k] == levs[j], k ] <- j-1
+				for( j in 1:length(levs) ) 
+				{
+				  idx <- which( X[,k] == levs[j] )  
+				  Y[ idx, k ] <- j-1
+				}
 			}
 			
 			notfactors <- which( isfact == FALSE )
-			for( k in notfactors) Y[ , k ] <- X[ , k ]
+			for( k in notfactors) Y[ , k ] <- as.numeric( X[ , k ] )
 		
 		}else{
-			Y <- X
+			if( is.matrix(X) ) Y <- X
 		}
 	
 		X <-Y
