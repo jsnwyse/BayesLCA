@@ -1,3 +1,5 @@
+# needs work for the collapsed
+
 summary.blca <-
 function(object, ...){
 	sum0<-sum2<-NULL
