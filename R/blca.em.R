@@ -17,76 +17,11 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	}else if( length(model.indicator) != M ){
 		stop("model.indicator must have length ncol(X)")
 	}
-	
-	prior.init.type <- 1
-	
-	# delta is the prior on the group weights
-	if( length(delta) == 1 ) delta<- rep(delta,G)
-	if( length(delta) != G ) stop("delta prior is wrong length (i.e., != 1 or G)")
-	
-	# alpha either acts only as the first category prior for binary, or the entire prior for multicategory case
-	if( !is.matrix(alpha) && !any( ncat > 2 ) ){
-	if( any(length(alpha)==c(1,G)) ){
-		alpha <- matrix(alpha,G,M)
-	}else{
-		if(length(alpha)==M){
-			# this is ok as there is a different alpha for each variable but the same across groups
-			alpha <- matrix( alpha, G, M, byrow=TRUE)
-			} else {
-			 	if( length(alpha) == G*sum(ncat) && beta==1 ){
-			 		if( !any( ncat > 2 ) ) warning("Using only entries in alpha to assign prior for sampling")
-			 		# pass alpha directly, this looks ok
-			 		prior.init.type <- 2
-			 	}else stop("Item probability prior improperly specified.")
-			}
-		}
-	} 
-	
-	if( is.matrix(beta) && any( ncat > 2 ) ) stop("Item probability prior improperly specified. Please use alpha to specify the prior." )
-	
-	# beta either acts only as the first category prior for binary 
-	if( !is.matrix(beta) ){
-	if( any(length(beta)==c(1,G)) ){
-		beta <- matrix(beta,G,M)
-	}else{
-		if(length(beta)==M){
-			beta <- matrix( beta, G, M, byrow=TRUE )
-			} else {
-			 	if( length(beta) == G*sum(ncat) && alpha==1 ){
-			 		stop("Item probability prior improperly specified. For varying numbers of categories, use alpha to specify the prior.")
-			 	}else stop("Item probability prior improperly specified.")
-			}
-		}
-	} 
-	
-	
-	
-	if( !any( ncat > 2 ) )
-	{
-		if( !all(dim(alpha) == c(G,M)) ) stop("alpha has not been specified with the correct dimensions")
-		if( !all( dim(beta) == c(G,M) ) ) stop("beta has not been specified with the correct dimensions")
-		# now restack the alpha and beta matrices into compatible format
-		gamma <- matrix( nrow=2*G, ncol=M )	
-		for( k in 1:G ) 
-		{
-			gamma[ 2*(k-1) + (1:2) ,  ] <- rbind( alpha[k,], beta[k,] )
-		}
-		prior.init.type <- 2
-	}else{
-		if( length(alpha) == 1 ){
-			prior.init.type <- 1
-			gamma <- rep( alpha, G*sum(ncat) )
-		}else{
-			if( length(alpha) == sum(ncat) ) 
-			{
-				gamma <- rep( alpha, G )
-			}else if( length(alpha) == G*sum(ncat) ){
-				gamma <- alpha
-			}else{
-				stop("alpha provided is not of a compatible length. Please check and rerun.")
-			}
-		}
-	}
+
+	out.prior <- blca.check.prior( alpha, beta, delta, G, M, ncat )
+	prior.init.type <- out.prior$prior.init.type
+	gamma <- out.prior$gamma
+	delta <- out.prior$delta
 	
 	M.in <- sum( model.indicator ) 
 	if( prod( ncat[model.indicator==1] ) <= (M.in+1)*G) warning(paste("Model may be improperly specified. Maximum number of classes that should be run is ", floor(prod(ncat[model.indicator==1])/(M.in+1)), "."))
@@ -145,7 +80,7 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	{	
 		# call the EM algorithm
 		
-		w <- .C( 		"BLCA_EM_FIT", 							as.integer(X), 			
+		w <- .C( 	"BLCA_EM_FIT", 							as.integer(X), 			
 							as.integer(N),								as.integer(M), 
 							as.integer(ncat),	 						as.double(hparam),
 							as.integer(prior.init.type), 			as.double(delta),
@@ -254,9 +189,9 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	
 	x$logpost <- log.post.max
   
-  	likl <- w.max$log.object.max
+  likl <- w.max$log.object.max
   	
-  	npars <- G * sum( model.indicator * ( ncat - 1 ) ) + G - 1
+  npars <- G * sum( model.indicator * ( ncat - 1 ) ) + G - 1
 	
 	x$BIC<- 2*likl- npars*log(N) ## this penalty will not be correct for multicat
 	x$AIC<- 2*likl - 2*npars
