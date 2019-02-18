@@ -1,3 +1,5 @@
+# print functions need a little more work
+
 print.blca <-
 function(x, ...){
 
