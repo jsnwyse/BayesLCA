@@ -1,3 +1,5 @@
+# this is giving an error
+
 summary.blca.collapsed <-
 function(object, ...){
 	sum1<- c( object$iter, object$burn.in, object$thin, mean(object$samples$logpost), object$G.sel, object$var.sel )
