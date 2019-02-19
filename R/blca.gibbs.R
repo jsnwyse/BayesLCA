@@ -2,6 +2,11 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 {
 
 	t1 <- proc.time()
+	
+	# blca.check.missing has to be wrapped in blca.check.data...
+	miss <- blca.check.missing( X )
+	missing <- miss$missing
+	missing.idx <- miss$idxs
 
 	# convert X into a numeric matrix and check inputs
 	D <- blca.check.data( X, counts.n, ncat )
@@ -48,12 +53,32 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 	weights <- numeric(stored*G)
 	variable.probs <- numeric(stored*G*sum(ncat))
 	log.post <- numeric( stored )
+	
+	# set up storage for imputed missing data if present
+	
+	if( missing )
+	{
+	  warning("\n Encountered missing values in X. These will be imputed.")
+	  n.missing <- nrow(missing.idx)
+	  missing.values <- numeric( n.missing * stored )
+	  # the position of the missing values in C ordering
+	  #  pass the row and the corresponding column, as easier to find... 
+	  sample.missing.data <- TRUE
+	  # replace the missing values with -1
+	  for( k in 1:n.missing ) X[ missing.idx[k,1], missing.idx[k,2] ] <- -1 
+	  position.missing <- as.vector(missing.idx) - 1
+	}else{
+	  n.missing <- 0
+	  missing.values <- NULL
+	  position.missing <- NULL
+	  sample.missing.data <- FALSE
+	}
 
 	hparam <- c( delta[1], beta[1] )
 	
 	# initialization is done randomly to groups
 	
-	w <- .C(	"BLCA_GIBBS_SAMPLER",													as.integer(X),
+	w <- .C(	"BLCA_GIBBS_SAMPLER",											as.integer(X),
 				as.integer(N),																as.integer(M),
 				as.integer(ncat),															as.double(hparam),
 				as.integer(prior.init.type),
@@ -62,8 +87,10 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 				as.integer(G),															 	as.integer(iter),											
 				as.integer(burn.in),
 				as.integer(Thinby),														memberships = as.integer(memberships),					
-				weights = as.double(weights),											variable.probs = as.double(variable.probs),			
-				as.integer(model.indicator), 											log.posterior = as.double(log.post),
+				weights = as.double(weights),									variable.probs = as.double(variable.probs),			
+				as.integer(model.indicator), 									log.posterior = as.double(log.post), 
+				as.integer(sample.missing.data),                as.integer(n.missing),
+				missing.values = as.integer(missing.values),    as.integer(position.missing),
 				as.integer( verbose ),													as.integer( verbose.update ),			
 				PACKAGE = "BayesLCA" )
 	
@@ -147,6 +174,11 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 		names( v.probs$mean ) <- names( v.probs$sd ) <- colnames(X)[  which( model.indicator == 1 ) ]
 	}
 	
+	if( missing )
+	{
+	  missing.samp <- matrix( w$missing, nrow=stored, byrow=TRUE )
+	}
+	
 	#compile the list to return
 
 	x <- list()
@@ -173,6 +205,11 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 	x$samples$Giter <- rep( G, stored )
 	x$samples$itemprob <- var.probs.l
 	x$samples$classprob <- t( weights.mat )
+	
+	if( missing )
+	{
+	  x$samples$missing <- missing.samp
+	}
 	
 	if(any(ncat > 2)){
 		x$itemprob.tidy <- data.frame(itemprob = vec.itemprobs, group = itemprobs.group.ind, variable = itemprobs.var.ind, category = itemprobs.cat.ind)
