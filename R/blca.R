@@ -1,10 +1,12 @@
 blca <-
 function(X, G, ncat=NULL, method=c("em", "gibbs", "boot", "vb", "collapsed"),...){
-	# if(length(method)>1){
-		# method<- method[1]
-		# warning(paste("More than one method specified", method, "method used only."))
-		# } 
+
 	method<- match.arg(method)
+	
+	# check for missing values
+	miss <- blca.check.missing(X)
+	if( miss$missing & method != "gibbs" ) stop("X contains missing values. Specify method = 'gibbs' to use data imputation.") 
+	rm(miss)
 	
 	if(method == "em") return(blca.em(X, G, ...))
 	if(method == "vb") return(blca.vb(X, G, ...))
