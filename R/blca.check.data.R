@@ -63,7 +63,7 @@ blca.check.data <- function( X, counts.n, ncat )
 
 	#check that matrix is binary and/or n.categories is passed
 	if( is.null(ncat) ){
-		if( !all( X[X>0]==1) ){
+		if( !all( X[(!is.na(X)) & X>0]==1) ){
 			stop("A matrix other than binary must have non-null ncat vector" )
 		} else {
 			#matrix is binary
@@ -73,10 +73,10 @@ blca.check.data <- function( X, counts.n, ncat )
 		if(length(ncat)!= M) stop("The length of ncat must be the same as the number of records per observation\n")
 	}
 	
-	t <- apply( X, 2, max )
+	t <- apply( X, 2, function(x) max( x, na.rm=TRUE ) )
 	if( sum( t + 1 - ncat ) > 0 ) stop("Number of categories in X exceeds ncat please recode categories from 0, ..., num cat-1")
 	
-	t <- apply( X, 2, min )
+	t <- apply( X, 2, function(x) min( x, na.rm=TRUE ) )
 	if( sum(t) > 0 ) warning("It appears some variables have empty category 0. Analysis will proceed based assuming this is the case. If not, check X input.")
 	
 	return( list( X=X, ncat=ncat ) )
