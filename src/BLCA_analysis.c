@@ -201,13 +201,14 @@ struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_it
 
 
 void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int *group_memberships, 
-						double *group_weights, double *variable_probabilities, double *log_joint_posterior, int verbose, int verbose_update )
+						double *group_weights, double *variable_probabilities, double *log_joint_posterior, int sample_missing_data, int n_missing, 
+						int *imputed_missing_values, int *position_missing, int verbose, int verbose_update )
 {
 
 	//this is the non-collapsed form of the model which uses Gibbs updates for all unknowns...
 	// in this model there is no search for the number of groups, and no variable selection moves
 	
-	int i, j, k, l, c, p, idx, g_new, ind, itmod, *order;
+	int i, j, k, l, c, p, idx, g_new, y_old, y_new, ind, itmod, *order;
 	
 	double *w,s,m;
 	w = calloc(mixmod->G,sizeof(double));
@@ -225,6 +226,30 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 	for(l=0;l<num_iteration+num_burnin;l++){
 	
 		R_CheckUserInterrupt();
+	  
+	  // impute the missing data before carrying out the update step
+	  
+	  if( sample_missing_data )
+	  {
+	    for( k=0; k<n_missing; k++ )
+	    {
+	       i = position_missing[ 2 * k ];
+	       j = position_missing[ 2 * k + 1 ];
+	      
+	       g_new = mixmod->z[i];
+	       
+	       // take old vector out of component
+	       BLCA_add_to_component( mixmod->components[ g_new ], mixmod->Yobs[ i ], mixmod, -1 );
+	       
+	       y_new = 	BLCA_sample_discrete( mixmod->components[g_new]->prob_variables[j], mixmod->ncat[j] );
+         mixmod->Yobs[i][j] = y_new;
+         
+         // add new vector to the component
+         BLCA_add_to_component( mixmod->components[ g_new ], mixmod->Yobs[ i ], mixmod, 1 );
+	    }
+	  }
+	  
+	  
 		
 		//sample the memberships in a random order
 		
@@ -303,7 +328,6 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 				}
 			}
 		}
-	
 		
 		p = 0;
 		
@@ -337,6 +361,19 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 			}
 				
 			for(i=0;i<mixmod->G;i++) group_weights[itmod*mixmod->G + i] = mixmod->weights[i];
+
+			// if any missing data 
+			
+			if( sample_missing_data )
+			{
+			  for( k=0; k<n_missing; k++ )
+			  {
+			    i = position_missing[ 2 * k ];
+			    j = position_missing[ 2 * k + 1 ];
+			    
+			    imputed_missing_values[ itmod*n_missing + k ] = mixmod->Yobs[i][j];
+			  }
+			}			
 			
 			log_joint_posterior[ itmod ] = BLCA_get_full_log_posterior_x2(mixmod);
 			
