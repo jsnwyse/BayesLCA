@@ -22,7 +22,8 @@ struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_it
 				 double *prior_include, int *var_pattern, int verbose, int verbose_update );
 
 void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int *group_memberships, 
-						double *group_weights, double *variable_probabilities, double *log_joint_posterior, int verbose, int verbose_update );
+                                       double *group_weights, double *variable_probabilities, double *log_joint_posterior, int sample_missing_data, int n_missing, 
+                                       int *imputed_missing_values, int *position_missing, int verbose, int verbose_update );
 
 void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iterations, double *membership_probabilities, double *group_weights, 
 			double *variable_probabilities, double *log_likelihood, int MAP, double tol, double *eps, int *converged ) ;
