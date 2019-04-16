@@ -3,7 +3,7 @@ Type: Package
 Title: Bayesian Latent Class Analysis
 Version: 1.8
 Date: 2016-01-16
-Depends: e1071, coda
+Depends: e1071, coda, label.switching
 Authors@R: c( person( "Arthur", "White", email = "arwhite@tcd.ie", role = c( "aut", "cre" ), comment = "Previous email address: arthur.white@ucdconnect.ie" ), person( "Thomas Brendan", "Murphy", email = "brendan.murphy@ucd.ie", role = c( "aut", "ths" ) ) )
 Description: Bayesian Latent Class Analysis using several different
         methods.
