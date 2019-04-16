@@ -10,7 +10,7 @@
 			Ireland.
 			mailto: wyseja@tcd.ie
 
-	Last modification of this code: Wed 26 Jul 2017 11:56:42 IST 			
+	Last modification of this code: Mon 18 Feb 2019 11:56:42 IST 			
 */
 
 #include "BLCA_mixmod.h"
@@ -19,7 +19,7 @@ static void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int
 
 static void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *n_sample, int *memberships, int *variable_inclusion_indicator, int *variable, double *estimate, double *sd_estimate, double *classprob_estimate, double *sd_classprob_estimate ) ; 
 
-static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *init_type, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *verbose, int *verbose_update );
+static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *init_type, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *sample_missing_data, int *n_missing, int *imputed_missing_values, int *position_missing, int *verbose, int *verbose_update );
 
 static void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *n_groups, int *init_type, double *init_vals, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol, double *eps, int *converged, double *max_log_likelihood );
 
@@ -32,7 +32,7 @@ static void BLCA_RELABEL( int *n_obs, int *n_sample, int *n_groups, int *labels_
 static const R_CMethodDef cMethods[] = {
 	{ "BLCA_VS", (DL_FUNC) &BLCA_VS , 29 },
 	{ "BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES", (DL_FUNC) &BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES , 14 },
-	{ "BLCA_GIBBS_SAMPLER", (DL_FUNC) &BLCA_GIBBS_SAMPLER , 20 },
+	{ "BLCA_GIBBS_SAMPLER", (DL_FUNC) &BLCA_GIBBS_SAMPLER , 24 },
 	{ "BLCA_EM_FIT", (DL_FUNC) &BLCA_EM_FIT , 23 },
 	{ "BLCA_VB_FIT", (DL_FUNC) &BLCA_VB_FIT , 25 },
 	{ "BLCA_BOOT_FIT", (DL_FUNC) &BLCA_BOOT_FIT , 21 },
@@ -208,7 +208,7 @@ static void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int 
 
 /*------------------------------------ Gibbs sampler (not collapsed)-------------------------------*/
 
-static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *init_type, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *verbose, int *verbose_update )
+static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *init_type, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *sample_missing_data, int *n_missing, int *imputed_missing_values, int *position_missing,  int *verbose, int *verbose_update )
 {
 
 	int i,j,n,d,inG,mxG,nit,nburn,fixed,justgibbs;
@@ -230,7 +230,8 @@ static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *
 	BLCA_initialize_Gibbs_sampler( *init_type, mixmod );
 	
 	BLCA_analysis_MCMC_Gibbs_sampler(mixmod,*n_iterations,*n_burn_in,*thin_by,
-												group_memberships, group_weights, prob_variables, log_joint_posterior, *verbose, *verbose_update );
+												group_memberships, group_weights, prob_variables, log_joint_posterior, *sample_missing_data, *n_missing, 
+												imputed_missing_values, position_missing, *verbose, *verbose_update );
 	
 	PutRNGstate();
 
