@@ -227,29 +227,6 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 	
 		R_CheckUserInterrupt();
 	  
-	  // impute the missing data before carrying out the update step
-	  
-	  if( sample_missing_data )
-	  {
-	    for( k=0; k<n_missing; k++ )
-	    {
-	       i = position_missing[ 2 * k ];
-	       j = position_missing[ 2 * k + 1 ];
-	      
-	       g_new = mixmod->z[i];
-	       
-	       // take old vector out of component
-	       BLCA_add_to_component( mixmod->components[ g_new ], mixmod->Yobs[ i ], mixmod, -1 );
-	       
-	       y_new = 	BLCA_sample_discrete( mixmod->components[g_new]->prob_variables[j], mixmod->ncat[j] );
-         mixmod->Yobs[i][j] = y_new;
-         
-         // add new vector to the component
-         BLCA_add_to_component( mixmod->components[ g_new ], mixmod->Yobs[ i ], mixmod, 1 );
-	    }
-	  }
-	  
-	  
 		
 		//sample the memberships in a random order
 		
@@ -330,6 +307,29 @@ void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration
 		}
 		
 		p = 0;
+		
+		// impute the missing data before carrying out the update step
+	  
+	  if( sample_missing_data )
+	  {
+	    for( k=0; k<n_missing; k++ )
+	    {
+	       i = position_missing[ 2 * k ]; // this is where the problem is!!!
+	       j = position_missing[ 2 * k + 1 ];
+	      
+	       g_new = mixmod->z[i];
+	       
+	       // take old vector out of component
+	       BLCA_add_to_component( mixmod->components[ g_new ], mixmod->Yobs[ i ], mixmod, -1 );
+	       
+	       y_new = BLCA_sample_discrete( mixmod->components[g_new]->prob_variables[j], mixmod->ncat[j] );
+          mixmod->Yobs[i][j] = y_new;
+          mixmod->Y[j][i] = y_new;
+         
+         // add new vector to the component
+         BLCA_add_to_component( mixmod->components[ g_new ], mixmod->Yobs[ i ], mixmod, 1 );
+	    }
+	  }
 		
 		//storage of results
 		if(l > num_burnin-1 && (l+1-num_burnin)%thin_by == 0){

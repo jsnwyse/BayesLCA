@@ -211,17 +211,26 @@ static void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int 
 static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *init_type, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *sample_missing_data, int *n_missing, int *imputed_missing_values, int *position_missing,  int *verbose, int *verbose_update )
 {
 
-	int i,j,n,d,inG,mxG,nit,nburn,fixed,justgibbs;
+	int i,j,k,l,n,d,inG,mxG,nit,nburn,fixed,justgibbs,y_new;
+  //double *u_prob;
 	struct mix_mod *mixmod;
 	
+	//u_prob = (double *)calloc( 100, sizeof(double) );
+	
 	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, TRUE, FALSE, FALSE, FALSE );
+	
+	if( *verbose ) Rprintf("\n  Allocation complete ... ");
 
 	for(j=0;j<mixmod->d;j++)
 		mixmod->varindicator[j] = var_in[j];
 	
 	BLCA_initialize_data( mixmod, Y );
 	
+	if( *verbose ) Rprintf("\n  Initialisation complete ... ");
+	
 	BLCA_initialize_priors( mixmod, alpha_prior, beta_prior, *prior_init_type );
+	
+	if( *verbose ) Rprintf("\n  Prior initialisation complete ... ");
 	
 	GetRNGstate();
 	
@@ -229,12 +238,14 @@ static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *
 	
 	BLCA_initialize_Gibbs_sampler( *init_type, mixmod );
 	
+	if( *verbose ) Rprintf("\n  Gibbs sampler initialisation  complete ... ");
+	
 	BLCA_analysis_MCMC_Gibbs_sampler(mixmod,*n_iterations,*n_burn_in,*thin_by,
 												group_memberships, group_weights, prob_variables, log_joint_posterior, *sample_missing_data, *n_missing, 
 												imputed_missing_values, position_missing, *verbose, *verbose_update );
 	
 	PutRNGstate();
-
+	
 	BLCA_free_mixmod(mixmod);
 		
 	return;
