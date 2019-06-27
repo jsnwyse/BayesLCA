@@ -59,14 +59,15 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 	if( missing )
 	{
 	  warning("\n Encountered missing values in X. These will be imputed.")
+	  # add an na behaviour option in time
 	  n.missing <- nrow(missing.idx)
 	  missing.values <- numeric( n.missing * stored )
 	  # the position of the missing values in C ordering
 	  #  pass the row and the corresponding column, as easier to find... 
 	  sample.missing.data <- TRUE
-	  # replace the missing values with -1
-	  for( k in 1:n.missing ) X[ missing.idx[k,1], missing.idx[k,2] ] <- -1 
-	  position.missing <- as.vector(missing.idx) - 1
+	  # replace the missing values with random generated
+	  for( k in 1:n.missing ) X[ missing.idx[k,1], missing.idx[k,2] ] <- sample(0:(ncat[missing.idx[k,2]]-1), size=1)
+	  position.missing <- as.vector(t(missing.idx)) - 1
 	}else{
 	  n.missing <- 0
 	  missing.values <- NULL
@@ -121,7 +122,7 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 
 	if( relabel ) 
 	{
-	  relabelled <- undo.label.switching( membership.mat, rep(G, stored) )
+	  relabelled <- undo.label.switching( membership.mat, rep(G, stored), w$log.posterior )
 	
   	#post processed weights and probabilities
   	
@@ -246,6 +247,7 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 	}
 			
 	#inputs
+	x$G <- G
 	x$iter <- iter
 	x$burn.in <- burn.in
 	x$thin <- thin

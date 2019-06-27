@@ -32,7 +32,6 @@ blca.check.data <- function( X, counts.n, ncat )
 		Y <- matrix( nrow=N, ncol=M )
 		colnames(Y) <- colnames(X) 
 		
-		# ---- this is not working properly ---- # 
 		
 		if( is.data.frame(X) )
 		{
@@ -82,3 +81,4 @@ blca.check.data <- function( X, counts.n, ncat )
 	return( list( X=X, ncat=ncat ) )
 
 }
+

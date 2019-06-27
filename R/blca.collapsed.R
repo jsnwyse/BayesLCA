@@ -70,7 +70,7 @@ blca.collapsed <- function( X,  G, ncat=NULL , alpha=1, beta=1, delta=1, start.v
 	if( relabel ) 
 	{
 		if( G.sel ) grps <- w$ngroups else grps <- rep( G , stored )
-		relabelled <- undo.label.switching( membership.mat, grps )
+		relabelled <- undo.label.switching( membership.mat, grps, w$log.posterior )
 	}
 	
 	x = list()

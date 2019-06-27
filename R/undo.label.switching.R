@@ -1,21 +1,5 @@
-#=========================================================
-#	Implementation of the label switching algorithm
-#	of Nobile and Fearnside (2007) Statistics & Computing.
-#
-#	Author of this implementation:
-#		Jason Wyse,
-#		Discipline of Statistics,
-#		School of Computer Science and Statistics,
-#		Trinity College Dublin,
-#		Dublin 2, Ireland.
-#
-#	Last update:
-#		Fri 24 Feb 2017 21:42:08 GMT  
-#=========================================================
-
-
-undo.label.switching <- function( Z, Gsamp = NULL )
-#undo label switching using Nobile and Fearnside approach
+undo.label.switching <- function( Z, Gsamp = NULL, logpost )
+#undo label switching using label.switching package
 {
 
 	# Z is a matrix of labels with row i indexing classifications
@@ -51,6 +35,10 @@ undo.label.switching <- function( Z, Gsamp = NULL )
       
       idx.k <- which(ngroups == k)
       labels.k <- Z[idx.k,]
+      logpost.k <- logpost[ idx.k ]
+      
+      idx.lab.k <- which.max(logpost.k)
+      z.pivot <- labels.k[ idx.lab.k, ]
       
       nsamp.k <- length(idx.k)
       ngrp.k <- k
@@ -62,45 +50,58 @@ undo.label.switching <- function( Z, Gsamp = NULL )
       if((k!=1) && (length(idx.k) > 1))
       {
       
-        nonempty.k <- apply( labels.k, 1, function(x) length(unique(x)) )
-        t.k <- sort( nonempty.k, index.return=TRUE )
+        #nonempty.k <- apply( labels.k, 1, function(x) length(unique(x)) )
+        #t.k <- sort( nonempty.k, index.return=TRUE )
         
-        labels.arranged.k <- labels.k[ t.k$ix, ]
+        #labels.arranged.k <- labels.k[ t.k$ix, ]
         
-        item.tags.k <- idx.k[ t.k$ix ] #this is the actual index of each row in the original matrix Z
+        item.tags.k <- idx.k #[ t.k$ix ] #this is the actual index of each row in the original matrix Z
         
-        labels.out.k <- numeric(nsamp.k*nobs)
+        #labels.out.k <- numeric(nsamp.k*nobs)
         
-        w <- .C(	"BLCA_RELABEL",								as.integer(nobs),
-        				as.integer(nsamp.k),					as.integer(ngrp.k),
-        				as.integer(labels.arranged.k),	x=as.integer(labels.out.k),
-        			   xx = as.integer(permutation),		PACKAGE = "BayesLCA" )
+        #w <- .C(	"BLCA_RELABEL",								as.integer(nobs),
+        #				as.integer(nsamp.k),					as.integer(ngrp.k),
+        #				as.integer(labels.arranged.k),	x=as.integer(labels.out.k),
+        #			   xx = as.integer(permutation),		PACKAGE = "BayesLCA" )
+        
+        w <- ecr( zpivot=z.pivot, labels.k, K=k)
         
         ret$ncomponents[j] <- k
-        ret$memberships[[j]] <- matrix(w$x,nrow = nsamp.k,ncol=nobs,byrow=FALSE)
-        ret$permutation[[j]] <- matrix(w$xx,nrow=nsamp.k,ncol=k,byrow=FALSE)
+        #ret$memberships[[j]] <- matrix(w$x,nrow = nsamp.k,ncol=nobs,byrow=FALSE)
+        ret$permutation[[j]] <- w$permutations #matrix(w$xx,nrow=nsamp.k,ncol=k,byrow=FALSE)
+        
+        labels.perm <- labels.k
+        # have to make a permuted membership matrix
+        for( i in 1:nsamp.k )
+        {
+          labels.perm[i,] <- pmatch( labels.k[i,], w$permutations[i,], duplicates.ok=T )
+        }
+        ret$memberships[[j]] <- labels.perm
         
         #compute membership probabilities for each data pt
+        probs <- matrix( nrow = nobs, ncol=k )
         
-        probs <- matrix( nrow = nobs, ncol=k)
-        for(id in 1:nobs){
-        	for(c in 1:k){
-        		probs[id,c] <- length(which(ret$memberships[[j]][,id] == c))
-        	}
-        }
+        for( id in 1:nobs ) probs[ id, ] <- tabulate( ret$memberships[[j]][,id], nbins=k )
+        
+        # for(id in 1:nobs){
+        # 	for(c in 1:k){
+        # 		probs[id,c] <- length(which(ret$memberships[[j]][,id] == c))
+        # 	}
+        # }
+        # 
         
         probs <- probs/nsamp.k
         
         ret$membership.probabilities[[j]] <- probs
  
         #for variable indicator
-		ret$item.tags[[j]] <- item.tags.k  
+		    ret$item.tags[[j]] <- idx.k  
 		
-		#store in the new Z matrix Zrelab
+	    	#store in the new Z matrix Zrelab
 		
-		Zrelab[ item.tags.k, ] <- ret$memberships[[j]]
+	    	Zrelab[ item.tags.k, ] <- ret$memberships[[j]]
 		
-		Perm[ item.tags.k, 1:k ] <- ret$permutation[[j]]
+	   	  Perm[ item.tags.k, 1:k ] <- ret$permutation[[j]]
         
       }else{
         

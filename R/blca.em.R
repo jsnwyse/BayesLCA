@@ -129,7 +129,13 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	
 	x <- list()
 	x$call <- match.call()
+	x$args <- as.list( environment() )
 	
+	x$G <- G
+	x$classprob <- w.max$weights
+	
+	o<- order(x$classprob, decreasing=TRUE)
+	x$classprob <- x$classprob[o]
 	
 	var.probs.l <- list()
 	
@@ -145,6 +151,7 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 		if( model.indicator[j] )
 		{
 			var.probs.l[[l]] <- matrix( w.max$variable.probs[(gap+1):(gap + G*ncat[j])] , nrow =  G, ncol=ncat[j], byrow=TRUE )
+			var.probs.l[[l]] <- var.probs.l[[l]][o,]
 			rownames( var.probs.l[[l]] ) <-  paste( "Group", 1:G )
 			colnames( var.probs.l[[l]] ) <- paste("Cat",0:(ncat[j]-1) )
 			l <- l+1
@@ -176,17 +183,12 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	  
 	#x$itemprob.tidy <- itemprob.tidy	
 	
-	x$classprob <- w.max$weights
-	
 	# include the itemprob.sd here?- this  is still left to do	
-	
-	
-	
-	x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G )
-	colnames(x$Z) <- paste( "Group", 1:G )	
-	
 
-	
+	x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G )
+	x$Z <- x$Z[,o]
+	colnames(x$Z) <- paste( "Group", 1:G )	
+
 	x$logpost <- log.post.max
   
   likl <- w.max$log.object.max
@@ -213,7 +215,11 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	if( sd ) x$for.boot <- TRUE
 	if( for.boot )
 	{
-		x$boot.init = list( weights=w.max$weights, var.probs=w.max$variable.probs )
+	  # prepare var.probs
+	  vp <- lapply( x$itemprob, function(w) t(w) )
+	  # have to do this after the reordering
+	  vp <- unlist( vp )
+		x$boot.init = list( weights=x$classprob, var.probs=vp )
 	}
 	
 	if( sd )
