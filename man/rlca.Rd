@@ -8,7 +8,7 @@ Randomly Generate Binary Data with Underlying Latent Classes
 A function which randomly generates data with respect to some underlying latent class. Data may be generated either by specifying item and class probabilities or by utilising an object previously fitted to data.
 }
 \usage{
-rlca(n, itemprob = 0.5, classprob = 1, fit = NULL, ncat=NULL )
+rlca(n, itemprob = 0.5, classprob = 1, fit = NULL, ncat=NULL, return.class=FALSE )
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -27,12 +27,19 @@ An object of class blca. If fit is supplied, data is generated using the class a
 \item{ncat}{
 	The number of categories in each variable (column).
 }
+\item{return.class}{
+Logical, indicating whether the class labels should be returned with the simulated data. 
+}
 
+}
+
+\value{
+If \code{return.class} is FALSE, then an n by \code{length(ncat)} matrix containing the data. If \code{return.class} is true, a list with entry \code{X} equal to the data and entry \code{class} the labels.
 }
 
 
 \author{
-Arthur White
+Arthur White, Jason Wyse
 }
 
 
