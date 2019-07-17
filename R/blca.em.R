@@ -187,8 +187,9 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 
 	x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G )
 	x$Z <- x$Z[,o]
+	if(G>1){							      
 	colnames(x$Z) <- paste( "Group", 1:G )	
-
+	}	
 	x$logpost <- log.post.max
   
   likl <- w.max$log.object.max
