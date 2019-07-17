@@ -244,6 +244,7 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 		x$labelstore.permutation <- relabelled$permutation
 		x$G.Z <- relabelled$components
 		x$Z <- relabelled$label.probs
+		x$Z <- x$Z[[1]]
 	}
 			
 	#inputs
