@@ -151,7 +151,7 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 		if( model.indicator[j] )
 		{
 			var.probs.l[[l]] <- matrix( w.max$variable.probs[(gap+1):(gap + G*ncat[j])] , nrow =  G, ncol=ncat[j], byrow=TRUE )
-			var.probs.l[[l]] <- var.probs.l[[l]][o,]
+			if(G>1){var.probs.l[[l]] <- var.probs.l[[l]][o,]}
 			rownames( var.probs.l[[l]] ) <-  paste( "Group", 1:G )
 			colnames( var.probs.l[[l]] ) <- paste("Cat",0:(ncat[j]-1) )
 			l <- l+1
