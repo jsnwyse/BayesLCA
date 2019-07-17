@@ -205,7 +205,7 @@ blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c
 	x$samples$logpost <- w$log.posterior
 	x$samples$Giter <- rep( G, stored )
 	x$samples$itemprob <- var.probs.l
-	x$samples$classprob <- t( weights.mat )
+	x$samples$classprob <- ( weights.mat )
 	
 	if( missing )
 	{
