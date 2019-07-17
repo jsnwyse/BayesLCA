@@ -76,7 +76,8 @@ function(x, which=1L, main="", col1=heat.colors(12), ...){
 	if(is.null(dimnames( x$itemprob )[2])){
 		caption <- paste(rep("Column",M), 1:M)
 		 }
-	else caption <- dimnames( x$itemprob )[2]
+	else {caption <- dimnames( x$itemprob )[2]
+	     caption <- unlist(caption) }
 	
 	for(m in 1:M){
 		
