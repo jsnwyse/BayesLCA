@@ -259,7 +259,7 @@ function(X, G, ncat=NULL, alpha=1,beta=1, delta=1, start.vals= c("single","acros
 	} else { 
 	  # rearrange for backwards compatibility with plotting functions
 	  x$itemprob <- matrix(vec.itemprobs[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), names(x$itemprob)))
-	  x$itemprob.sd <- matrix(vec.itemprobs.sd[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), names(x$itemprob)))
+	  x$itemprob.sd <- matrix(vec.itemprobs.sd[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), names(x$itemprob.sd)))
 	  M.in <- sum(model.indicator)
 	  arr <- array( dim=c(B,G,M.in) )
 	  for( m in 1:M.in ) 
