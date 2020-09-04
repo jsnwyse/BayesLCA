@@ -20,7 +20,7 @@ Additional arguments to be passed onto lower-level functions at a later stage of
 }
 }
 \details{
-Prints parameter maximum \emph{a posteriori} (map) and standard deviation estimates. The latter are sometimes unavailable for \code{\link{blca.em}} objects.
+Prints parameter maximum \emph{a posteriori} (MAP) and standard deviation estimates. In the case of the EM or bootstrap methods, when MAP is set to FALSE, maximum likleihood and standard errors are computed.
 }
 \value{
 %%  ~Describe the value returned

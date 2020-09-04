@@ -6,11 +6,10 @@ function(x, ...){
 	cat("__________________\n")
 	# only print the priors if a MAP has been used
 	pr <- FALSE
-	if( x$method != "EM algorithm" & x$method != "Bootstrap" ){
+	if( x$method %in% c("gibbs", "vb", "collapsed") ){
 		pr <- TRUE
 	}else{
-		if( x$method == "EM algorithm" && x$MAP == TRUE ) pr <- TRUE
-		if( x$method == "Bootstrap" && x$MAP == TRUE ) pr <- TRUE
+		if( x$MAP ) pr <- TRUE
 	}
 	if( pr )
 	{
@@ -25,7 +24,7 @@ function(x, ...){
 		print(x$sum2$ClassProb)
 		cat("__________________\n")
 	}	
-	cat("\nMethod:",x$method, " \n")
+	cat("\nMethod:",x$method.str, " \n")
 	for(ind in 1:length(x$sum1)){
 		cat("\n", x$printnames[ind], x$sum1[ind], "\n")
 		}

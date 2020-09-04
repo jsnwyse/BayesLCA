@@ -5,7 +5,7 @@ function(X, G, ncat=NULL, method=c("em", "gibbs", "boot", "vb", "collapsed"),...
 	
 	# check for missing values
 	miss <- blca.check.missing(X)
-	if( miss$missing & method != "gibbs" ) stop("X contains missing values. Specify method = 'gibbs' to use data imputation.") 
+	if( miss$missing & method != "gibbs" ) warning("X contains missing values: method = 'gibbs' will carry out data imputation.", call.=FALSE) 
 	rm(miss)
 	
 	if(method == "em") return(blca.em(X, G, ...))

@@ -1,5 +1,4 @@
-blca.boot.old <-
-function(X, G, ncat=NULL,  alpha=1,beta=1, delta=1, start.vals= c("single","across"), counts.n=NULL, fit=NULL, iter=50,  B=100, relabel=FALSE, verbose=TRUE, verbose.update=10, small=1e-100)
+blca.boot.old <- function(X, G, ncat=NULL,  alpha=1,beta=1, delta=1, start.vals= c("single","across"), counts.n=NULL, fit=NULL, iter=50,  B=100, relabel=FALSE, verbose=TRUE, verbose.update=10, small=1e-100)
 {			
 	if( !is.null(ncat) && any(ncat > 2) )
 	{
@@ -9,7 +8,7 @@ function(X, G, ncat=NULL,  alpha=1,beta=1, delta=1, start.vals= c("single","acro
 	if(is.null(fit)){
 		if(verbose==TRUE) cat("Object 'fit' not supplied. Obtaining starting values via blca.em...\n")
 		if(is.null(G)) warning("Number of groups must be specified.")
-		x<-blca.em(X, G, iter=500, conv=1e-10, alpha=alpha, beta=beta, delta=delta , start.vals= start.vals) 
+		x<-blca.em.old(X, G, iter=500, conv=1e-10, alpha=alpha, beta=beta, delta=delta , start.vals= start.vals) 
 		conv<-x$eps
 		if(verbose==TRUE) cat("Starting values obtained...\n")
 	} else {
@@ -221,3 +220,4 @@ if(!is.matrix(alpha)){
 	class(boot)<-c("blca.boot", "blca")
 	boot
 	}
+

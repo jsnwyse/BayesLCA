@@ -8,16 +8,15 @@ Bayesian Latent Class Analysis via an EM Algorithm and Using Empirical Bootstrap
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X.  blca.boot repeatedly samples from X with replacement then utilises an EM algorithm to find maximum posterior (MAP) and standard error estimates of the parameters.
 }
 \usage{
-blca.boot(X, G, ncat=NULL, alpha=1,beta=1, delta=1, 
-				start.vals= c("single","across"), counts.n=NULL, 
-				model.indicator=NULL, fit=NULL, iter=50,  B=100, 
-				relabel=FALSE, verbose=TRUE, verbose.update=10, 		
-				small=1e-100, MAP=TRUE)
+blca.boot(X, G, ncat=NULL, alpha=1, beta=1, delta=1, 
+          start.vals= c("single","across"), counts.n=NULL, model.indicator=NULL, 
+          fit=NULL, iter=2000,  B=100, verbose=TRUE, verbose.update=100,
+          conv=1e-06, small=1e-10, MAP=TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{X}{
-The data matrix. This may take one of several forms, see \code{\link{data.blca}}.
+Data matrix or dataframe. This may take one of several forms, see \code{\link{data.blca}}.
 }
   \item{G}{
 The number of classes to run lca for.
@@ -49,15 +48,16 @@ The maximum number of iterations that the algorithm runs over, for each bootstra
   \item{B}{
 The number of bootstrap samples to run. Defaults to 100.
 }
-  \item{relabel}{
-Logical valued. As the data is recursively sampled, it is possible that label-switching may occur with respect to parameter estimates.  If TRUE, parameter estimates are checked at each iteration, and relabeled if necessary.  Defaults to FALSE.
-}
+
   \item{verbose}{
 Logical valued. If TRUE, the current number of completed bootstrap samples is printed at regular intervals.
 }
   \item{verbose.update}{
 If \code{verbose=TRUE}, \code{verbose.update} determines the periodicity with which updates are printed.
 }
+
+\item{conv}{Convergence threshold for runs of the EM algorithm within bootstrap samples.}
+
   \item{small}{
 To ensure numerical stability a small constant is added to certain parameter estimates. Defaults to 1e-100.
 }
@@ -77,35 +77,36 @@ Note that if a previously fitted model is supplied, then the prior values with w
 %%  \item{comp2 }{Description of 'comp2'}
 %% ...
 A list of class "blca.boot" is returned, containing:
+\item{method}{Method used to fit LCA to this dataset.}
 \item{call}{The initial call passed to the function.}
-\item{itemprob}{The item probabilities, conditional on class membership. Either a matrix or a list dependending on whether there are only dichotomous variables or a mix of di and polychotomous variables.}
+\item{args}{List of arguments passed to the function.}
+\item{G}{Number of classes.}
 \item{classprob}{The class probabilities.}
+\item{classprob.sd}{Posterior standard deviation or standard error.}
+\item{itemprob}{The item probabilities, conditional on class membership. Either a matrix or a list dependending on whether there are only dichotomous variables or a mix of di and polychotomous variables.}
+\item{itemprob.sd}{Posterior standard deviation or standard error.}
+\item{itemprob.tidy}{Another representation of itemprob for use by plotting functions.}
 \item{Z}{Estimate of class membership for each unique datapoint.}
-\item{itemprob.sd}{Posterior standard deviation estimates of the item probabilities. Either a matrix or a list dependending on whether there are only dichotomous variables or a mix of di and polychotomous variables.}
-\item{classprob.sd}{Posterior standard deviation estimates of the class probabilities.}
-\item{classprob.initial, itemprob.initial}{Initial parameter values for classprob and itemprob, used to run over each bootstrapped sample.}
-\item{samples}{A list containing the parameter estimates for each bootstrapped sample.}
-\item{BIC}{The Bayesian Information Criterion for the estimated model.}
+\item{logpost}{The log-posterior evaluated at the estimated parameters i.e. the parameters from averaging over bootstrap replications.}
+\item{loglik}{The maximum log-likelihood of the estimated model (only returned when \code{MAP=FALSE}). }
 \item{AIC}{Akaike's Information Criterion for the estimated model.}
-\item{logpost}{The log-posterior of the estimated model.}
-\item{label}{Logical value, indicating whether label switching has been checked for.}
-\item{prior}{A list containing the prior values specified for the model.}
+\item{BIC}{The Bayesian Information Criterion for the estimated model.}
+\item{samples}{A list containing the parameter estimates for each bootstrap sample.}
 \item{B}{Number of bootstrap samples.}
-\item{counts.n}{ The number of times each unique datapoint point occured.}
-\item{ncat}{The ncat vector from the call.}
+\item{prior}{A list containing the prior values specified for the model.}
+\item{classprob.initial, itemprob.initial}{Initial parameter values for classprob and itemprob, used to run over each bootstrapped sample.}
 \item{model.indicator}{Binary vector indicating the variables which were included for clustering.}
 \item{MAP}{Logical indicating whether the MAP was targeted i.e. whether the maximum of the log posterior or log likelihood was used.}
+\item{ncat}{The ncat vector from the call.}
 }
+
 \references{
    Wasserman, L, 22nd May 2007, \emph{All of Nonparametric Statistics}, Springer-Verlag.
 }
 \author{
-Arthur White
+Arthur White, Jason Wyse
 }
 
-\note{
-Earlier versions of this function erroneously referred to posterior standard deviations as standard errors. This also extended to arguments supplied to and returned by the function, some of which are now returned with the corrected corrected suffix \code{blca.em.sd} (for standard deviation). For backwards compatability reasons, the earlier suffix \code{.se} has been retained as a returned argument.
-}
 \seealso{
 \code{\link{blca.em}}, \code{\link{blca}}
 }
@@ -116,7 +117,7 @@ x <- rlca(1000, rbind(type1,type2), c(0.6,0.4))
 fit.boot <- blca.boot(x, 2)
 summary(fit.boot)
 
-fit <- blca.em(x, 2, se=FALSE)
+fit <- blca.em(x, 2, sd=FALSE)
 fit.boot <- blca.boot(x, 2, fit=fit)
 fit.boot
 plot(fit.boot, which=1:4)

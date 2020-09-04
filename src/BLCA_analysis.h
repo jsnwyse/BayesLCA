@@ -22,7 +22,7 @@ struct results *BLCA_analysis_MCMC_collapsed( struct mix_mod *mixmod, int num_it
 				 double *prior_include, int *var_pattern, int verbose, int verbose_update );
 
 void BLCA_analysis_MCMC_Gibbs_sampler( struct mix_mod *mixmod, int num_iteration, int num_burnin, int thin_by, int *group_memberships, 
-                                       double *group_weights, double *variable_probabilities, double *log_joint_posterior, int sample_missing_data, int n_missing, 
+                                       double *group_weights, double *variable_probabilities, double *log_joint_posterior, double *log_like, int sample_missing_data, int n_missing, 
                                        int *imputed_missing_values, int *position_missing, int verbose, int verbose_update );
 
 void BLCA_analysis_EM( struct mix_mod *mixmod, int max_iterations, int *iterations, double *membership_probabilities, double *group_weights, 
@@ -39,7 +39,7 @@ void BLCA_VB_phi_step( struct mix_mod *mixmod );
 
 void BLCA_VB_alpha_beta_step( struct mix_mod *mixmod );
 
-void BLCA_analysis_Boot( struct mix_mod *mixmod, int boot_samples, int max_iterations, 
-									double *group_weights, double *prob_variables, double *log_likelihood, double tol, int verbose, int verbose_update );
+void BLCA_analysis_Boot( struct mix_mod *mixmod, int boot_samples, int max_iterations, int *boot_samp_idx, double *group_probs,
+									double *group_weights, double *prob_variables, double *log_posterior_boot, double *log_likelihood_boot, double tol, int verbose, int verbose_update );
 
 #endif

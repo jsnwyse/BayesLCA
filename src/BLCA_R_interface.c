@@ -10,7 +10,7 @@
 			Ireland.
 			mailto: wyseja@tcd.ie
 
-	Last modification of this code: Mon 18 Feb 2019 11:56:42 IST 			
+	Last modification of this code: Wed 29 July 2020			
 */
 
 #include "BLCA_mixmod.h"
@@ -19,23 +19,26 @@ static void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int
 
 static void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, int *n_sample, int *memberships, int *variable_inclusion_indicator, int *variable, double *estimate, double *sd_estimate, double *classprob_estimate, double *sd_classprob_estimate ) ; 
 
-static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *init_type, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *sample_missing_data, int *n_missing, int *imputed_missing_values, int *position_missing, int *verbose, int *verbose_update );
+static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *init_type, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, double *log_like, int *sample_missing_data, int *n_missing, int *imputed_missing_values, int *position_missing, int *verbose, int *verbose_update );
 
-static void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *n_groups, int *init_type, double *init_vals, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol, double *eps, int *converged, double *max_log_likelihood );
+static void BLCA_LOG_LIKE(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, double *group_weights, double *prob_variables, int *var_in, double *value );
+
+static void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *n_groups, int *init_type, double *init_vals, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol, double *eps, int *converged, double *max_log_likelihood, int *BOOT );
 
 static void BLCA_VB_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *n_groups, int *init_type, double *init_vals, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *sd_group_weights, double *par_group_weights, double *prob_variables, double *sd_prob_variables, double *par_prob_variables, int *var_in, double *lower_bound, double *tol, int *converged, double *log_post );
 
-static void BLCA_BOOT_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *boot_samples, int *n_groups, double *init_group_weights, double *init_group_probabilities, double *out_group_weights, double *out_prob_variables, double *out_log_likelihood, int *var_in, int *MAP, double *tol, int *max_iterations, int *verbose, int *verbose_update );
+static void BLCA_BOOT_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *boot_samples, int *n_groups, int *boot_samples_idx, double *init_group_weights, double *init_group_probabilities, double *out_group_probs, double *out_group_weights, double *out_prob_variables, double *out_log_posterior, double *out_log_likelihood, int *var_in, int *MAP, double *tol, int *max_iterations, int *verbose, int *verbose_update );
 
 static void BLCA_RELABEL( int *n_obs, int *n_sample, int *n_groups, int *labels_in, int *labels_out, int *permutation );
 
 static const R_CMethodDef cMethods[] = {
 	{ "BLCA_VS", (DL_FUNC) &BLCA_VS , 29 },
 	{ "BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES", (DL_FUNC) &BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES , 14 },
-	{ "BLCA_GIBBS_SAMPLER", (DL_FUNC) &BLCA_GIBBS_SAMPLER , 24 },
-	{ "BLCA_EM_FIT", (DL_FUNC) &BLCA_EM_FIT , 23 },
+	{ "BLCA_GIBBS_SAMPLER", (DL_FUNC) &BLCA_GIBBS_SAMPLER , 25 },
+	{ "BLCA_LOG_LIKE", (DL_FUNC) &BLCA_LOG_LIKE, 10 },
+	{ "BLCA_EM_FIT", (DL_FUNC) &BLCA_EM_FIT , 24 },
 	{ "BLCA_VB_FIT", (DL_FUNC) &BLCA_VB_FIT , 25 },
-	{ "BLCA_BOOT_FIT", (DL_FUNC) &BLCA_BOOT_FIT , 21 },
+	{ "BLCA_BOOT_FIT", (DL_FUNC) &BLCA_BOOT_FIT , 24 },
 	{ "BLCA_RELABEL", (DL_FUNC) &BLCA_RELABEL, 6 },
 	NULL
 };
@@ -53,7 +56,7 @@ static void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int
 
 	// I have just put the vectors for the priors in here... these have to be passed to the initialize function
 
-	int i,j,n,d,inG,mxG,nit,nburn,fixed,justgibbs;
+	int i, j, n, d, inG, mxG, nit, nburn, fixed, justgibbs;
 	struct mix_mod *mixmod;
 	struct results *results;
 	
@@ -69,7 +72,9 @@ static void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int
 		BLCA_set_prior_on_number_of_components(mixmod,NOBILE_AND_FEARNSIDE);
 	}*/
 	
-	BLCA_initialize_data( mixmod, Y );
+	//BLCA_initialize_data( mixmod, Y );
+	
+	mixmod->y = Y;
 	
 	BLCA_initialize_priors( mixmod, alpha_prior, beta_prior, *prior_init_type );
 	
@@ -124,7 +129,7 @@ static void BLCA_VS(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int
 		acc_rts[5] = 100.*(double) results->accepted_include_exclude_variable / results->proposed_include_exclude_variable ;
 	}
 
-	BLCA_free_results(results,*n_iterations,*n_burn_in,*thin_by);
+	//BLCA_free_results(results,*n_iterations,*n_burn_in,*thin_by);
 
 	BLCA_free_mixmod(mixmod);
 	
@@ -171,11 +176,11 @@ static void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int 
 	
 	/*allocate the space to store estimated parameters*/
 	
-	Estimate = calloc(*n_groups,sizeof(double *));
-	SE_Estimate = calloc(*n_groups,sizeof(double *));
+	Estimate = (double **)calloc(*n_groups,sizeof(double *));
+	SE_Estimate = (double **)calloc(*n_groups,sizeof(double *));
 	for(i=0;i<*n_groups;i++){
-		Estimate[i] = calloc(mixmod->ncat[*variable],sizeof(double));
-		SE_Estimate[i] = calloc(mixmod->ncat[*variable],sizeof(double));
+		Estimate[i] = (double *)calloc(mixmod->ncat[*variable],sizeof(double));
+		SE_Estimate[i] = (double *)calloc(mixmod->ncat[*variable],sizeof(double));
 	}
 
 	BLCA_compute_post_hoc_parameter_estimates_for_variable( mixmod, input, *n_sample, *n_groups, *variable, Estimate, SE_Estimate );
@@ -208,29 +213,22 @@ static void BLCA_VS_COMPUTE_POST_HOC_PARAMETER_ESTIMATES(int *Y, int *nobs, int 
 
 /*------------------------------------ Gibbs sampler (not collapsed)-------------------------------*/
 
-static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *init_type, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, int *sample_missing_data, int *n_missing, int *imputed_missing_values, int *position_missing,  int *verbose, int *verbose_update )
+static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *init_type, int *n_groups, int *n_iterations, int *n_burn_in, int *thin_by, int *group_memberships, double *group_weights, double *prob_variables, int *var_in, double *log_joint_posterior, double *log_like, int *sample_missing_data, int *n_missing, int *imputed_missing_values, int *position_missing,  int *verbose, int *verbose_update )
 {
 
-	int i,j,k,l,n,d,inG,mxG,nit,nburn,fixed,justgibbs,y_new;
-  //double *u_prob;
+	int j, *vind;
 	struct mix_mod *mixmod;
-	
-	//u_prob = (double *)calloc( 100, sizeof(double) );
 	
 	mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, TRUE, FALSE, FALSE, FALSE );
 	
-	if( *verbose ) Rprintf("\n  Allocation complete ... ");
-
-	for(j=0;j<mixmod->d;j++)
-		mixmod->varindicator[j] = var_in[j];
+  vind = mixmod->varindicator;
+	for( j=0; j<*nvar; j++ ) vind[j] = var_in[j];
 	
-	BLCA_initialize_data( mixmod, Y );
+	//BLCA_initialize_data( mixmod, Y );
 	
-	if( *verbose ) Rprintf("\n  Initialisation complete ... ");
+	mixmod->y = Y;
 	
 	BLCA_initialize_priors( mixmod, alpha_prior, beta_prior, *prior_init_type );
-	
-	if( *verbose ) Rprintf("\n  Prior initialisation complete ... ");
 	
 	GetRNGstate();
 	
@@ -238,10 +236,8 @@ static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *
 	
 	BLCA_initialize_Gibbs_sampler( *init_type, mixmod );
 	
-	if( *verbose ) Rprintf("\n  Gibbs sampler initialisation  complete ... ");
-	
 	BLCA_analysis_MCMC_Gibbs_sampler(mixmod,*n_iterations,*n_burn_in,*thin_by,
-												group_memberships, group_weights, prob_variables, log_joint_posterior, *sample_missing_data, *n_missing, 
+												group_memberships, group_weights, prob_variables, log_joint_posterior, log_like, *sample_missing_data, *n_missing, 
 												imputed_missing_values, position_missing, *verbose, *verbose_update );
 	
 	PutRNGstate();
@@ -251,9 +247,42 @@ static void BLCA_GIBBS_SAMPLER(int *Y, int *nobs, int *nvar, int *ncat, double *
 	return;
 }
 
+/*-------------------- convenience function to get the log-likelihood -------------------------*/
+static void BLCA_LOG_LIKE(int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *n_groups, double *group_weights, double *prob_variables, int *var_in, double *value )
+{
+  
+  int j;
+  struct mix_mod *mixmod;
+  
+  mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, TRUE, FALSE, FALSE, FALSE );
+  
+  for(j=0;j<mixmod->d;j++)
+    mixmod->varindicator[j] = var_in[j];
+  
+  //BLCA_initialize_data( mixmod, Y );
+  mixmod->y = Y;
+  
+  //put the weights and item probabilities in 
+  BLCA_initialize_Boot( mixmod, group_weights, prob_variables );
+  
+  *value = BLCA_get_log_likelihood(mixmod);
+  
+  //PutRNGstate();
+  
+  BLCA_free_mixmod(mixmod);
+  
+  return;
+}
+
+
+
 /*-----------------------------------------fit using EM algorithm----------------------------------------*/
 
-static void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *n_groups, int *init_type, double *init_vals, int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol, double *eps, int *converged, double *max_log_likelihood )
+static void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, 
+                         double *alpha_prior, double *beta_prior, int *n_groups, int *init_type, double *init_vals, 
+                         int *max_iterations, int *iterations, double *group_probabilities, double *group_weights, 
+                         double *prob_variables, int *var_in, double *log_likelihood, int *MAP, double *tol, double *eps, 
+                         int *converged, double *max_log_likelihood, int *BOOT )
 {
 
 		struct mix_mod *mixmod;
@@ -268,18 +297,18 @@ static void BLCA_EM_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam
 		GetRNGstate();
 		
 		//initialize by using the values in group_weights and prob_variables
-		
-		BLCA_initialize_EM( *init_type, init_vals , mixmod , group_weights, prob_variables);
+		if( *BOOT )
+		    BLCA_initialize_Boot( mixmod, group_weights, prob_variables );
+		  else
+		    BLCA_initialize_EM( *init_type, init_vals , mixmod , group_weights, prob_variables);
 		
 		PutRNGstate();
 		
-		BLCA_initialize_data( mixmod, Y );	
+		mixmod->y = Y;
+		
+		//BLCA_initialize_data( mixmod, Y );	
 		
 		BLCA_initialize_priors( mixmod, alpha_prior, beta_prior, *prior_init_type );
-
-		//important... need a function to initialize the algorithm...a
-		//can most likely pass the  initialization in through the arg--
-		//initialize_EM(mixmod,*n_groups);	
 		
 		BLCA_analysis_EM( mixmod, *max_iterations, iterations, group_probabilities, group_weights, prob_variables, log_likelihood, *MAP, *tol, eps, converged ) ;
 		
@@ -312,7 +341,9 @@ static void BLCA_VB_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam
 		
 		PutRNGstate();
 
-		BLCA_initialize_data( mixmod, Y );
+		//BLCA_initialize_data( mixmod, Y );
+		
+		mixmod->y = Y;
 		
 		BLCA_initialize_priors( mixmod, alpha_prior, beta_prior, *prior_init_type );
 		
@@ -326,7 +357,10 @@ static void BLCA_VB_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam
 
 /*-----------------------------------------fit using Bootstrap algorithm----------------------------------------*/
 
-static void BLCA_BOOT_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, int *boot_samples, int *n_groups, double *init_group_weights, double *init_prob_variables, double *out_group_weights, double *out_prob_variables, double *out_log_likelihood, int *var_in, int *MAP, double *tol, int *max_iterations, int *verbose, int *verbose_update )
+static void BLCA_BOOT_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hparam, int *prior_init_type, double *alpha_prior, double *beta_prior, 
+                           int *boot_samples, int *n_groups, int *boot_samples_idx, double *init_group_weights, double *init_prob_variables, double *out_group_probs,
+                           double *out_group_weights, double *out_prob_variables, double *out_log_posterior, double *out_log_likelihood, 
+                           int *var_in, int *MAP, double *tol, int *max_iterations, int *verbose, int *verbose_update )
 {
 		struct mix_mod *mixmod;
 		int i, j;
@@ -334,7 +368,7 @@ static void BLCA_BOOT_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hpar
 		
 		mixmod = BLCA_allocate_mixmod( *nobs, *nvar, *n_groups, *n_groups, hparam, ncat, FALSE, FALSE, *MAP, FALSE, TRUE ); 
 		
-		for(j=0;j<mixmod->d;j++) 
+		for( j=0; j<*nvar; j++ ) 
 			mixmod->varindicator[j] = var_in[j];
 		
 		GetRNGstate();
@@ -343,11 +377,13 @@ static void BLCA_BOOT_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hpar
 		
 		BLCA_initialize_Boot( mixmod, init_group_weights, init_prob_variables );
 		
-		BLCA_initialize_data( mixmod, Y );	
+		//BLCA_initialize_data( mixmod, Y );	
+		
+		mixmod->y = Y;
 		
 		BLCA_initialize_priors( mixmod, alpha_prior, beta_prior, *prior_init_type );
 		
-		BLCA_analysis_Boot( mixmod, *boot_samples, *max_iterations, out_group_weights, out_prob_variables, out_log_likelihood, *tol, *verbose, *verbose_update ) ;
+		BLCA_analysis_Boot( mixmod, *boot_samples, *max_iterations, boot_samples_idx, out_group_probs, out_group_weights, out_prob_variables, out_log_posterior, out_log_likelihood, *tol, *verbose, *verbose_update ) ;
 		
 		PutRNGstate();
 		
@@ -359,6 +395,8 @@ static void BLCA_BOOT_FIT( int *Y, int *nobs, int *nvar, int *ncat, double *hpar
 
 
 /*-----------------------------------------Label Switching algorithm----------------------------------------*/
+
+/* needed anymore?*/
 
 static void BLCA_RELABEL( int *n_obs, int *n_sample, int *n_groups, int *labels_in, int *labels_out, int *permutation )
 {

@@ -17,6 +17,7 @@
 
 #include "BLCA_required_libs.h"
 #include "BLCA_utils.h"
+#include "BLCA_digamma_func.h"
 
 struct component
 {
@@ -56,6 +57,8 @@ struct mix_mod
 	int *ncat; /*number of categories for each of the variables*/
 	
 	int *varindicator; /*indicates whether the variable is in or not*/
+
+  int *y; /*pointer to data passed from R*/
 	
 	int **Y; /*the raw data stacked as variable \times obs (J \times N)*/
 	
@@ -81,7 +84,15 @@ struct mix_mod
 	
 	double *alpha_prior; // vector of prior on weights
 	
+	double lg_alpha_sum; // sum of gamma
+	
+	double lg_sum_alpha;
+	
 	double ***beta_prior; // array (possibly varying in size) of Dirichlet prior on weights 
+	
+	double **lg_beta_sum; // array with sum of log gamma of betas
+	
+	double **lg_sum_beta; // array with log gamma of sum of betas
 	
 	double alpha; /*alpha: dirichlet prior on weights symmetric*/
 	
@@ -139,11 +150,11 @@ struct mix_mod
 #include "BLCA_analysis.h"
 
 
-struct mix_mod *BLCA_allocate_mixmod(int datasize, int datadimension, int maxgroups, int initgroups,
- double *prior_hparams, int *ncat, int collapsed, int EM_fit, int EM_MAP, int VB, int BOOT ) ;
+struct mix_mod *BLCA_allocate_mixmod(int n, int d, int G_max, int G, double *prior_hparams,int *ncat, 
+                                     int COLLAPSED, int EM_fit, int EM_MAP, int VB, int BOOT );
 
-struct mix_mod *BLCA_clone_mixmod( struct mix_mod *mixmod );
+struct mix_mod *BLCA_clone_mixmod( struct mix_mod *mm );
 
-void BLCA_free_mixmod(struct mix_mod *mixmod) ;
+void BLCA_free_mixmod(struct mix_mod *mm);
 
 #endif

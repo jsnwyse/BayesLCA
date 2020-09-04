@@ -1,12 +1,28 @@
 blca.em <-
-function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","across"), counts.n=NULL, model.indicator=NULL, iter=1000, restarts=5, verbose=TRUE, sd=FALSE, se=sd, conv=1e-6, small=1e-100, MAP=TRUE, pars.init=NULL, for.boot=FALSE )
+function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","across"), counts.n=NULL, model.indicator=NULL, iter=2000, restarts=5, verbose=TRUE, sd=FALSE, sd.method=c("delta","boot"), conv=1e-6, small=1e-10, MAP=TRUE, pars.init=NULL, for.boot=FALSE )
 {
-	
+	# check if data is simulated 
+  if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
+  
+  args.passed <- as.list( environment() )
+  #list of returns
+  x <- list()
+  x$call <- match.call()
+  x$args <- args.passed
+  
+  # blca.check.missing ...
+  miss <- blca.check.missing( X )
+  if( miss$missing ){
+    warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
+    X <- na.omit(X)
+  } 
+  
 	# convert X into a numeric matrix and check inputs
 	D <- blca.check.data( X, counts.n, ncat )
 	
 	X <- D$X
 	ncat <- D$ncat
+	x$args$ncat <- ncat
 
 	N<-nrow(X) 
 	M<-ncol(X)
@@ -24,22 +40,18 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	delta <- out.prior$delta
 	
 	M.in <- sum( model.indicator ) 
-	if( prod( ncat[model.indicator==1] ) <= (M.in+1)*G) warning(paste("Model may be improperly specified. Maximum number of classes that should be run is ", floor(prod(ncat[model.indicator==1])/(M.in+1)), "."))
-	
-	counter<- 0
-	llstore<- 0
-	llcheck<- -Inf
+	if( M.in == 0 ) stop("there are no variables included: check model.indicator")
+	if( prod( ncat[model.indicator==1] ) <= (M.in+1)*G) stop(paste("maximum numer of classes that should be run for this data is ", floor(prod(ncat[model.indicator==1])/(M.in+1)) ))
 
 	if(is.numeric(restarts)){
 	  if(length(restarts)>1){
 	    restarts<- restarts[1]
-	    warning("restarts improperly specified - first value will be used, other values will be ignored")
+	    warning("Restarts improperly specified: first value will be used, other values will be ignored", call.=FALSE)
 	    }# else {stop("restarts improperly specified. Must be an integer of length 1.")}
-	} else {stop("restarts improperly specified. Must be an integer of length 1.")}
+	} else {stop("restarts improperly specified: must be an integer valued")}
 
 	multistart.lp.store<- rep(0, restarts)
-	if( sd != se ) se<- sd
-	
+
 	#storage 
 	weights <- numeric(G)
 	variable.probs <- numeric(G*sum(ncat))
@@ -52,14 +64,14 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	hparam <- c( delta[1], beta[1] )
 	
 	log.object.max <- 0.
-	
 	log.post.max <- -Inf
 	w.max <- NULL
 	
+	plus.plus <- FALSE
 	init.vals <- numeric(N*G)
 	if( is.character(start.vals[1]) ) 
 	{
-		if( start.vals[1] == "single" ) init <- 0 else init <- 1
+	  init <- match( start.vals[1], c("single","across")) - 1
 	}else{
 		init <- 2
 		if(is.matrix(start.vals) & all(dim(as.matrix(start.vals)) == c(N,G))){
@@ -69,30 +81,34 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 		  { 
 		    init.vals<- as.vector(unMAP(start.vals))
 		    }else{ 
-		    stop("start.vals improperly specified. See help files for more details.")
+		    stop("start.vals improperly specified: see help")
 		   }
 		}
 	}
 	
 	lpstarts <- numeric(restarts)
+	cnv.warn <- FALSE
+	#X <-  t(X) #row major
+	x.vec <- as.vector(t(X))
 	
 	for( r in 1:restarts )
 	{	
 		# call the EM algorithm
-		
-		w <- .C( 	"BLCA_EM_FIT", 							as.integer(X), 			
+	  
+		w <- .C( 	"BLCA_EM_FIT", 							as.integer(x.vec), 			
 							as.integer(N),								as.integer(M), 
 							as.integer(ncat),	 						as.double(hparam),
 							as.integer(prior.init.type), 			as.double(delta),
 							as.double(gamma),
 							as.integer(G),								as.integer(init),
 							as.double(init.vals), 					as.integer(iter),
-							iters = as.integer(iter),				group.probs = as.double(group.probs),
+							iters = as.integer(iters),				group.probs = as.double(group.probs),
 							weights = as.double(weights),			variable.probs = as.double(variable.probs),
 							as.integer(model.indicator),			log.post = as.double(log.post),
 							as.integer(MAP),							as.double(conv),
 							eps = as.double(eps),
 							converged = as.integer(converged),	log.object.max = as.double(log.object.max),
+							as.integer(FALSE),
 							PACKAGE = "BayesLCA" )
 	
 		log.post.this <- w$log.post[ w$iters ]
@@ -103,7 +119,7 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 		#	for the runs that have converged
 		
 		new.max <- FALSE
-		if( log.post.this > log.post.max && w$converged == TRUE )
+		if( log.post.this > log.post.max )
 		{
 			w.max <- w 
 			log.post.max <- log.post.this
@@ -112,29 +128,26 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 		
 		if( verbose ) 
 		{
+		  if( MAP ) str.obj <- ", logpost = " else str.obj <- ", loglik = "
 			if( new.max && r>1 )
 			{
 				cat( "\nNew maximum found... Restart number ",r,", logpost = ", round(log.post.this,2),"...", sep = "" )
 			}else{ 
-				cat( "\nRestart number ",r,", logpost = ", round(log.post.this,2),"...", sep = "" )
+				cat( "\nRestart number ",r, str.obj, round(log.post.this,2),"...", sep = "" )
 			}
 		}
 		
-		if( w$converged == FALSE ) warning("\nRestart number ", r," failed to converge. Rerun with a higher iter value.")
+		if( as.logical(w$converged) == FALSE ) cnv.warn <- TRUE
 	
 	}	
+	
+	if(cnv.warn) warning("Some restarts failed to converge: rerun with a higher iter value or less stringent tolerance", call.=FALSE)
 	if( verbose ) cat("\n")
-	
-	#print(w.max)
-	
-	x <- list()
-	x$call <- match.call()
-	x$args <- as.list( environment() )
 	
 	x$G <- G
 	x$classprob <- w.max$weights
 	
-	o<- order(x$classprob, decreasing=TRUE)
+	o <- order(x$classprob, decreasing=TRUE)
 	x$classprob <- x$classprob[o]
 	
 	var.probs.l <- list()
@@ -142,7 +155,8 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	l <- 1
 	for( j in 1:M )
 	{
-		if(j == 1){
+		if(j == 1)
+		{
 			gap <- 0
 		}else{
 			gap <- G * sum( ncat[1:(j-1)] )
@@ -165,6 +179,8 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 		names( var.probs.l ) <- colnames(X)[  which( model.indicator == 1 ) ]
 	}
 	
+	if( any( unlist(var.probs.l) < 0 ) |  any(x$classprob < 0) ) stop("MAP estimation returned negative probabilities (this can happen for some priors): use of default priors is recommended here")
+	
 	x$itemprob <- var.probs.l	
 	
 	vec.itemprobs <- unlist(x$itemprob)
@@ -177,30 +193,28 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	
 	if(any(ncat > 2)){
 		x$itemprob.tidy <- data.frame(itemprob = vec.itemprobs, group = itemprobs.group.ind, variable = itemprobs.var.ind, category = itemprobs.cat.ind)
-	} else { 
-	  x$itemprob <- matrix(vec.itemprobs[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = M, dimnames = list(paste("Group", 1:G), names(x$itemprob)))
+	}else{ 
+	  x$itemprob <- matrix(vec.itemprobs[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), names(x$itemprob)))
 	  }
-	  
-	#x$itemprob.tidy <- itemprob.tidy	
-	
-	# include the itemprob.sd here?- this  is still left to do	
 
 	x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G )
 	x$Z <- x$Z[,o]
 	if(G>1){							      
 	colnames(x$Z) <- paste( "Group", 1:G )	
 	}	
-	x$logpost <- log.post.max
   
   likl <- w.max$log.object.max
-  	
+  
+  # print warning message for BIC/AIC if priors different from default
   npars <- G * sum( model.indicator * ( ncat - 1 ) ) + G - 1
+  likl <-  blca.compute.log.post( X, ncat, x$classprob, x$itemprob, model.indicator, prior=NULL )
+  if( MAP ) x$logpost <- log.post.max else x$loglik <- likl
 	
-	x$BIC<- 2*likl- npars*log(N) ## this penalty will not be correct for multicat
+	x$BIC<- 2*likl- npars*log(N) 
 	x$AIC<- 2*likl - 2*npars
 	x$iter<- w.max$iters
-	x$poststore <- w.max$log.post[ 1:w.max$iters ]
-	x$converged <- w.max$converged
+	if( MAP ) x$poststore <- w.max$log.post[ 1:w.max$iters ] else x$loglikstore <- w.max$log.post[ 1:w.max$iters ]
+	x$converged <- as.logical(w.max$converged)
 	x$eps <- w.max$eps
 	x$conv <- conv
 	x$lpstarts <- lpstarts
@@ -214,10 +228,15 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	
 	x$for.boot <- for.boot
 	if( sd ) x$for.boot <- TRUE
-	if( for.boot )
+	if( x$for.boot )
 	{
-	  # prepare var.probs
-	  vp <- lapply( x$itemprob, function(w) t(w) )
+	  if(any(ncat>2))
+	  {
+	    vp <- lapply( x$itemprob, t )
+	  }else{
+	    vp <- vector( ncol(x$itemprob), mode="list")
+	    for( k in seq_along(vp) ) vp[[k]] <- t( cbind(1-x$itemprob[,k],x$itemprob[,k]) )
+	  }
 	  # have to do this after the reordering
 	  vp <- unlist( vp )
 		x$boot.init = list( weights=x$classprob, var.probs=vp )
@@ -225,43 +244,22 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	
 	if( sd )
 	{
-		if( verbose ) cat("\nRunning bootstrap sampler to get variance estimates...")
-		y <- blca.boot( X, fit=x, iter=100, B=200, verbose=FALSE  )	
+		if( verbose ) cat("\nObtaining parameter uncertainty estimates...")
+		if( sd.method[1] == "boot" ) y <- blca.boot( X, G=G, fit=x, iter=500, B=100, verbose=FALSE, conv=1e-4  )
+		# still need to incorporate  the prior here
+	  if( sd.method[1] == "delta" ) y <- blca.em.sd( X, ncat, x$classprob, var.probs.l, model.indicator, NULL, 1e-10 )
 		x$itemprob.sd <-y$itemprob.sd
+		names(x$itemprob.sd) <- names(x$itemprob)
 		x$classprob.sd <- y$classprob.sd
-		if( verbose ) cat("\nBootstrap run complete...\n")
+		if( verbose ) cat("\nParameter uncertainty estimates complete...\n")
 	}
 	
+	x$method <- "em"
+	
+	if( MAP & !for.boot ) warning("If priors different from the package default are used, then AIC and BIC should not be used for model comparison: MAP must be FALSE for MLE", call. = FALSE)
+	
+	x <- blca.return.order( x )
 
-	if(FALSE){
-		# still need to do this
-		if( sd && !any(ncat > 2) ){
-#			if(any(x$itemprob==0)){ warning("some item probability estimates are exactly zero. standard errors in this case are undefined.")}
-#			if(any(x$classprob==0)){ warning("some class probability estimates are exactly zero. standard errors in this case are undefined.")}
-			s.e.<- blca.em.sd(x,X,counts.n)
-			x$itemprob.sd<- x$itemprob.se<- s.e.$itemprob
-			x$classprob.sd<- x$classprob.se<- s.e.$classprob
-			convergence<- s.e.$convergence
-		} else {
-			if( any(ncat > 2 ) ) warning("Estimates of variablility only available for binary problems.")
-			convergence<- 0
-		}
-		
-		#if(counter>iter){ 
-		#  convergence<- 3 
-		#  warning("maximum iteration reached - algorithm not deemed to have converged. rerunning the function with 'iter' set to a higher value is recommended.")
-		#} #else{ convergence<- s.e.$convergence}
-		if(convergence==2) {warning("some point estimates likely converged at saddle-point. at least some points will not be at a local maximum. \n rerunning the function with a larger number of restarts is recommended.")}
-		if(convergence==4){ warning("some point estimates located at boundary (i.e., are 1 or 0). posterior standard deviations will be 0 for these values.")}
-		x$convergence<- convergence
-		} else if(FALSE){ 
-		  x$convergence<- 1
-		  x$classprob.sd<- x$classprob.se<- 0
-		  x$itemprob.sd<- x$itemprob.se<- sqrt( ((Thetat*N1 + alpha)*( (1 - Thetat)*N1 + beta))/( (N1 + alpha + beta + small)^2 * (N1 + alpha + beta + 1 + small) ) )
-	}
-		#x$small<- small
-		#if((se==TRUE)&&(is.null(s.e.$classprob))) se<- FALSE
-		#x$sd<- x$se<- se
 	if(any(ncat > 2)) class(x)<- c("blca.em", "blca.multicat","blca") else class(x)<-c("blca.em", "blca")
 
 		return(x)

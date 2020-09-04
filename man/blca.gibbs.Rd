@@ -10,7 +10,7 @@ Latent class analysis (LCA) attempts to find G hidden classes in binary data X. 
 \usage{
 blca.gibbs( X, G, ncat=NULL,  alpha=1, beta=1, delta=1,
  start.vals=c("prior","single","across"), counts.n=NULL,
-  model.indicator=NULL, iter=5000, burn.in=100, thin=1,
+  impute.missing=FALSE,  model.indicator=NULL, iter=5000, burn.in=100, thin=1,
   accept=thin, relabel=TRUE, verbose=TRUE, verbose.update=1000 ) 
 }
 %- maybe also 'usage' for other objects documented here.
@@ -38,6 +38,10 @@ Denotes how class membership is to be assigned during the initial step of the al
 
 \item{counts.n}{
 If data patterns have already been counted, a data matrix consisting of each unique data pattern can be supplied to the function, in addition to a vector counts.n, which supplies the corresponding number of times each pattern occurs in the data. 
+}
+
+\item{impute.missing}{
+Argument for Gibbs sampling only. If \code{TRUE}, then impute any missing values by sampling from their full conditionals.
 }
 
 \item{model.indicator}{

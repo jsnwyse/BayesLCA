@@ -5,7 +5,7 @@ blca.check.prior <- function( alpha, beta, delta, G, M, ncat )
   
   # delta is the prior on the group weights
   if( length(delta) == 1 ) delta<- rep(delta,G)
-  if( length(delta) != G ) stop("delta prior is wrong length (i.e., != 1 or G)")
+  if( length(delta) != G ) stop("delta prior is wrong length (length is not either 1 or G)")
   
   # alpha either acts only as the first category prior for binary, or the entire prior for multicategory case
   if( !is.matrix(alpha) && !any(ncat > 2) ){
@@ -17,15 +17,15 @@ blca.check.prior <- function( alpha, beta, delta, G, M, ncat )
         alpha <- matrix( alpha, G, M, byrow=TRUE)
       } else {
         if( length(alpha) == G*sum(ncat) && beta==1 ){
-          if( !any( ncat > 2 ) ) warning("Using only entries in alpha to assign prior for sampling")
+          if( !any( ncat > 2 ) ) warning("using only entries in alpha to assign prior for sampling")
           # pass alpha directly, this looks ok
           prior.init.type <- 2
-        }else stop("Item probability prior improperly specified.")
+        }else stop("item probability prior improperly specified")
       }
     }
   } 
   
-  if( is.matrix(beta) && any( ncat > 2 ) ) stop("Item probability prior improperly specified. Please use alpha to specify the prior." )
+  if( is.matrix(beta) && any( ncat > 2 ) ) stop("item probability prior improperly specified: please use alpha to specify the prior." )
   
   # beta either acts only as the first category prior for binary 
   if( !is.matrix(beta) ){
@@ -36,8 +36,8 @@ blca.check.prior <- function( alpha, beta, delta, G, M, ncat )
         beta <- matrix( beta, G, M, byrow=TRUE )
       } else {
         if( length(beta) == G*sum(ncat) && alpha==1 ){
-          stop("Item probability prior improperly specified. For varying numbers of categories, use alpha to specify the prior.")
-        }else stop("Item probability prior improperly specified.")
+          stop("item probability prior improperly specified: for varying numbers of categories, use alpha to specify the prior")
+        }else stop("item probability prior improperly specified")
       }
     }
   } 
@@ -64,7 +64,7 @@ blca.check.prior <- function( alpha, beta, delta, G, M, ncat )
       }else if( length(alpha) == G*sum(ncat) ){
         gamma <- alpha
       }else{
-        stop("alpha provided is not of a compatible length. Please check and rerun.")
+        stop("alpha provided is not of a compatible length: please check and rerun")
       }
     }
   }
@@ -81,14 +81,14 @@ blca.check.prior.collapsed <- function( alpha, beta, delta, G.sel, G, G.max, M, 
   if( length(delta) == 1 ) delta<- rep(delta,G.max)
   if( length(delta) != G.max ) stop("delta prior is wrong length (i.e., != 1 or G.max)")
   if( length(delta) == G.max && any( delta != delta[1] ) && G.sel )
-    stop("Unsymmetric priors on group weights are not allowed when G.sel is set to TRUE. Rerun with delta set to a scalar.")
+    stop("unsymmetric priors on group weights are not allowed when G.sel is set to TRUE: rerun with delta set to a scalar")
   
   # alpha either acts only as the first category prior for binary, or the entire prior for multicategory case
   if( !is.matrix(alpha) && !any( ncat > 2 ) )
   {
     if( any(length(alpha)==c(1,G.max)) )
     {
-      if( length(alpha) == G.max && G.sel && any( alpha != alpha[1] ) ) stop("The prior setting for alpha is required to be the same over all groups when G.sel is set to TRUE. Rerun with alpha set to a scalar.") 
+      if( length(alpha) == G.max && G.sel && any( alpha != alpha[1] ) ) stop("the prior setting for alpha is required to be the same over all groups when G.sel is set to TRUE: rerun with alpha set to a scalar") 
       alpha <- matrix(alpha,G.max,M)
       if( G.sel ) alpha <- matrix( alpha[1], G.max, M ) 
     }else{
@@ -98,7 +98,7 @@ blca.check.prior.collapsed <- function( alpha, beta, delta, G.sel, G, G.max, M, 
         alpha <- matrix( alpha, G.max, M, byrow=TRUE)
       } else {
         if( length(alpha) == G.max*sum(ncat) && beta==1 ){
-          if( !any( ncat > 2 ) ) warning("Using only entries in alpha to assign prior for sampling")
+          if( !any( ncat > 2 ) ) warning("using only entries in alpha to assign prior for sampling")
           if( G.sel  ) 
           {
             # here we need a thorough check to ensure that the specification for the prior weight on a category does not change over groups
@@ -109,16 +109,16 @@ blca.check.prior.collapsed <- function( alpha, beta, delta, G.sel, G, G.max, M, 
               v <- alpha[ (idx0 + 1) : (idx0 + G.max*ncat[m]) ]
               if( any( v != v[1] ) ) u[m] <- TRUE
             }
-            if( any(u) ) stop("The prior setting for alpha is required to be the same over all groups when G.sel is set to TRUE. Rerun with alpha set to a scalar. Rerun") 
+            if( any(u) ) stop("the prior setting for alpha is required to be the same over all groups when G.sel is set to TRUE: rerun with alpha set to a scalar") 
           }
           # pass alpha directly, this looks ok
           prior.init.type <- 2
-        }else stop("alpha: Item probability prior improperly specified.")
+        }else stop("item probability prior improperly specified")
       }
     }
   } 
   
-  if( is.matrix(beta) && any( ncat > 2 ) ) stop("Item probability prior improperly specified. Please use alpha to specify the prior." )
+  if( is.matrix(beta) && any( ncat > 2 ) ) stop("item probability prior improperly specified: please use alpha to specify the prior" )
   
   # beta either acts only as the first category prior for binary 
   if( !is.matrix(beta)  && !any( ncat > 2 ) )
@@ -126,20 +126,20 @@ blca.check.prior.collapsed <- function( alpha, beta, delta, G.sel, G, G.max, M, 
     if( any(length(beta)==c(1,G.max)) )
     {
       if( length(beta) == G.max && G.sel && any(  beta != beta[1] ) ) 
-        stop("Unsymmetric priors with G selection is not available for collapsed sampler... rerun with beta set to a scalar")
+        stop("unsymmetric priors with G.sel set to TRUE is not available for collapsed sampler: rerun with beta set to a scalar")
       beta <- matrix(beta,G.max,M)
       if( G.sel ) beta <- matrix( beta[1], G.max, M )
     }else{
       if(length(beta)==M)
       {
         if( G.sel && any( beta != beta[1] ) ) 
-          stop("Unsymmetric priors with G selection is not available for collapsed sampler... rerun with beta set to a scalar") 
+          stop("unsymmetric priors with G.sel set to TRUE is not available for collapsed sampler: rerun with beta set to a scalar") 
         beta <- matrix(beta,G.max,M, byrow=TRUE)
       } else {
         if( length(beta) == G.max*sum(ncat) && alpha==1 )
         {
-          stop("Item probability prior improperly specified. For varying numbers of categories, use alpha to specify the prior.")
-        }else stop("beta: Item probability prior improperly specified.")
+          stop("item probability prior improperly specified: for varying numbers of categories use alpha to specify the prior")
+        }else stop("item probability prior improperly specified")
       }
     }
   } 
@@ -151,7 +151,7 @@ blca.check.prior.collapsed <- function( alpha, beta, delta, G.sel, G, G.max, M, 
     # if the priors are unsymmetric in all instances, disable moves 1, 2 and 3
     if( any( alpha != alpha[1] ) || any( beta != beta[1] ) )
     {
-      warning("Gibbs sampling is the only label update move carried out in blca.collapsed due to identifiability of priors.")
+      warning("Gibbs sampling is the only label update move carried out in blca.collapsed due to identifiability of priors")
       only.gibbs <- TRUE
     }
     # now restack the alpha and beta matrices into compatible format

@@ -21,8 +21,8 @@ void BLCA_allocate_results(struct results *results,int iterations,int burn_in,in
 	
 	int i, N = (int)(iterations/thin_by);
 	
-	results->ngroups = calloc(N,sizeof(int));
-	results->variable_prob_inclusion = calloc(d,sizeof(double));
+	//results->ngroups = calloc(N,sizeof(int));
+	//results->variable_prob_inclusion = calloc(d,sizeof(double));
 	
 	BLCA_reset_results( results );
 	
@@ -31,31 +31,22 @@ void BLCA_allocate_results(struct results *results,int iterations,int burn_in,in
 
 void BLCA_reset_results(struct results *results)
 {
-	results->proposed_m1 = 0;
-	results->accepted_m1 = 0;
-	results->proposed_m2 = 0;
-	results->accepted_m2 = 0;
-	results->proposed_m3 = 0;
-	results->accepted_m3 = 0;
-	results->proposed_eject = 0;
-	results->accepted_eject = 0;
-	results->proposed_absorb = 0;
-	results->accepted_absorb = 0;
-	results->proposed_add_variable = 0;
-	results->accepted_add_variable = 0;
-	results->proposed_remove_variable = 0;
-	results->accepted_remove_variable = 0;
-	results->proposed_include_exclude_variable = 0;
-	results->accepted_include_exclude_variable = 0;
-	
+	results->proposed_m1 = 0; results->accepted_m1 = 0;
+	results->proposed_m2 = 0; results->accepted_m2 = 0;
+	results->proposed_m3 = 0; results->accepted_m3 = 0;
+	results->proposed_eject = 0; results->accepted_eject = 0;
+	results->proposed_absorb = 0; results->accepted_absorb = 0;
+	results->proposed_add_variable = 0; results->accepted_add_variable = 0;
+	results->proposed_remove_variable = 0; results->accepted_remove_variable = 0;
+	results->proposed_include_exclude_variable = 0; results->accepted_include_exclude_variable = 0;
 	return;
 }
 
 void BLCA_free_results(struct results *results,int iterations,int burn_in,int thin_by )
 {
 	
-	free(results->ngroups);
-	free(results->variable_prob_inclusion);
+	//free(results->ngroups);
+	//free(results->variable_prob_inclusion);
 	
 	free(results);
 	

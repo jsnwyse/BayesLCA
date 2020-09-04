@@ -33,8 +33,6 @@
 
 #include "atable.h"
 
-#include "BLCA_digamma_func.h"
-
 //definitions
 
 #define TRUE 1

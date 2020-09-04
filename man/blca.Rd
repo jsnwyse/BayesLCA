@@ -14,7 +14,6 @@ blca(X, G, ncat=NULL, method = c("em", "gibbs", "boot", "vb", "collapsed"), ...)
 \arguments{
   \item{X}{
 The data matrix. This may take one of several forms, see \code{\link{data.blca}}.
-
 }
 \item{ncat}{
 	The number of categories in each variable (column).

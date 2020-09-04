@@ -17,6 +17,8 @@
 
 #include "BLCA_required_libs.h"
 #include "BLCA_mixmod.h"
+	
+struct component * BLCA_create_component( struct mix_mod *mixmod ) ;
 
 void BLCA_allocate_component(struct component *component,struct mix_mod *mixmod) ;
 
@@ -25,6 +27,8 @@ void BLCA_free_component(struct component *component,struct mix_mod *mixmod) ;
 void BLCA_copy_component(struct component *component_original,struct component *component_target,struct mix_mod *mixmod) ;
 
 void BLCA_add_to_component( struct component *component, int *x, struct mix_mod *mixmod, int sgn ) ;
+
+void BLCA_add_components( struct component *component_original, struct component *component_target, struct mix_mod *mixmod ) ;
 
 void BLCA_recompute_sufficient_statistics_for_components(struct mix_mod *mixmod) ;
 

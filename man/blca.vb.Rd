@@ -8,10 +8,9 @@ Bayesian Latent Class Analysis  via a variational Bayes algorithm
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X. blca.vb uses a variational EM algorithm to find the distribution which best approximates the parameters' true distribution.
 }
 \usage{
-blca.vb( X, G, ncat=NULL, alpha=1, beta=1, delta=1,
- start.vals=c("single", "across"), counts.n=NULL,
- model.indicator=NULL, iter=5000, restarts=5, 
- verbose=TRUE, conv=1e-6, small=1e-100 )
+blca.vb( X, G, ncat=NULL, alpha=1, beta=1, delta=1, 
+        start.vals = c("single", "across"), counts.n=NULL, model.indicator=NULL, 
+        iter=5000, restarts=5, verbose=TRUE, conv=1e-6, small=1e-10 )
 }
 
 
@@ -22,7 +21,7 @@ The data matrix. This may take one of several forms, see \code{\link{data.blca}}
 }
 
   \item{G}{
-The number of classes to run lca for.
+The number of classes to run LCA for.
 }
 \item{ncat}{
 	The number of categories in each variable (column).
@@ -75,30 +74,35 @@ While it is worth starting the algorithm from multiple starting points, variatio
 %%  \item{comp2 }{Description of 'comp2'}
 %% ...
 A list of class "blca.vb" is returned, containing:
+\item{method}{Method used to fit LCA to this dataset.}
 \item{call}{The initial call passed to the function.}
-\item{itemprob}{The item probabilities, conditional on class membership.}
+\item{args}{List of arguments passed to the function.}
+\item{G}{Number of classes.}
 \item{classprob}{The class probabilities.}
-\item{itemprob.sd}{Posterior standard deviation estimates of the item probabilities.}
 \item{classprob.sd}{Posterior standard deviation estimates of the class probabilities.}
-\item{parameters}{A list containing posterior parameter values for item and class probabilities, which are assumed to follow beta and Dirichlet distributions respectively.}
+\item{itemprob}{The item probabilities, conditional on class membership.}
+\item{itemprob.sd}{Posterior standard deviation estimates of the item probabilities.}
 \item{Z}{Estimate of class membership for each unique datapoint.}
+\item{parameters}{A list containing posterior parameter values for item and class probabilities, which are assumed to follow beta and Dirichlet distributions respectively.}
 \item{LB}{The lower bound estimate of the log-posterior of the estimated model.}
+\item{iter}{The number of iterations required before convergence.}
 \item{lbstore }{The value of the lower bound estimate for each iteration.}
 \item{converged}{Logical indicating whether the algorithm converged.}
-\item{iter}{The number of iterations required before convergence.}
 \item{eps}{The amount that the lower bound increased at the final iteration  of the algorithm's run. }
 \item{prior}{A list containing the prior values specified for the model.}
+\item{model.indicator}{Binary vector indicating the variables which were included for clustering.}
+\item{ncat}{The ncat vector from the call.}
 }
+
+
 \references{
 Ormerod J, Wand M (2010). ``Explaining Variational Approximations.'' The American Statistician, 64(2), 140-153. 
 }
 \author{
-Arthur White
+Arthur White, Jason Wyse
 }
 \note{
 Variational Bayes approximations, are known to often underestimate the standard errors of the parameters under investigation, so caution is advised when checking their values.
-
-Earlier versions of this function erroneously referred to posterior standard deviations as standard errors. This also extended to arguments supplied to and returned by the function, some of which are now returned with the corrected corrected suffix \code{blca.em.sd} (for standard deviation). For backwards compatability reasons, the earlier suffix \code{.se} has been retained as a returned argument.
 }
 
 \seealso{

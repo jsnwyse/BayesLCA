@@ -136,32 +136,41 @@ double BLCA_get_log_sum_exp( double *x, int len )
 	//note that this function also modifies the x argument
 
 	int i;
-	double s=0., max=-DBL_MAX, *z;
-	
-	z = calloc( len, sizeof(double) );
-	
-	for( i=0; i<len; i++ )
-	{
-		if( x[i] > max ) max = x[i] ;
-		z[i] = x[i] ;
-	}
+	double s=0., max=-DBL_MAX;
 
-	for( i=0; i<len; i++ )
-	{
-		z[i] -= max;
-		z[i] = exp( z[i] ) ;
-		s += z[i];
-	}
+	max = BLCA_get_max( x, len );
 	
 	for( i=0; i<len; i++ )
 	{
-		z[i] /= s ;
-		x[i] = z[i] ; 
+	  x[i] -= max;
+	  x[i] = exp(x[i]);
+	  s += x[i];
 	}
 	
-	free(z);
+	for( i=0; i<len; i++ ) x[i] /= s;
 	
 	return( max + log(s) );
+}
+
+double BLCA_get_log_sum_exp_all( double *x, int len )
+{
+  //note that this function also modifies the x argument
+  
+  int i;
+  double s=0., max=-DBL_MAX;
+  
+  max = BLCA_get_max( x, len );
+  
+  for( i=0; i<len; i++ )
+  {
+    x[i] -= max;
+    x[i] = exp(x[i]);
+    s += x[i];
+  }
+  
+  for( i=0; i<len; i++ ) x[i] /= s;
+  
+  return( max + log(s) );
 }
 
 

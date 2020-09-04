@@ -10,21 +10,21 @@
 			Ireland.
 			mailto: wyseja@tcd.ie
 			
-	Last modification of this code: Thu 27 Jul 2017 15:23:02 IST     */
+	Last modification of this code: Wed 29 July 2020    */
 
 #include "BLCA_density.h"
 
-double BLCA_log_normalizing_constant_model(int G,struct mix_mod *mixmod)
+double BLCA_log_normalizing_constant_model( int G, struct mix_mod *mixmod )
 /*returns the log of the normalizing constant for a model with G components*/
 {
-	double z, s=0.;
+	double z, s=0.0;
 	int k;
 	
 	if( mixmod->prior_type == 0 ) s = lgamma(G*mixmod->alpha) - G*lgamma(mixmod->alpha) - lgamma(mixmod->n+G*mixmod->alpha);
 	
 	if( mixmod->prior_type == 1 )
 	{
-		z = 0.;
+		z = 0.0;
 		for( k=0; k<G; k++ ) 
 		{
 			z += mixmod->alpha_prior[k];
@@ -36,12 +36,12 @@ double BLCA_log_normalizing_constant_model(int G,struct mix_mod *mixmod)
 	return(s); 	
 }
 
-double BLCA_l_prior_variable_include(int D,struct mix_mod *mixmod)
+double BLCA_l_prior_variable_include( int D, struct mix_mod *mixmod )
 {
 	
 	double l;
 	
-	l = D*log(mixmod->prior_prob_variable_include) + (mixmod->d - D)*log(1.-mixmod->prior_prob_variable_include);
+	l = D * log(mixmod->prior_prob_variable_include) + (mixmod->d - D) * log(1.-mixmod->prior_prob_variable_include) ;
 	
 	return(l);
 
@@ -50,26 +50,24 @@ double BLCA_l_prior_variable_include(int D,struct mix_mod *mixmod)
 double BLCA_get_full_log_posterior(struct mix_mod *mixmod)
 {
 
-	double log_full_posterior = 0.;
-	int i,d;
+  int j, g, v = 0, G = mixmod->G, d = mixmod->d, *wis = mixmod->whereis;
+	double log_full_posterior = 0.0;
+	
 
 	/*model normalizing constant*/
 	
-	log_full_posterior += BLCA_log_normalizing_constant_model(mixmod->G,mixmod);
+	log_full_posterior += BLCA_log_normalizing_constant_model( G, mixmod );
 	
 	/*components - discriminating*/
 	
-	for(i=0;i<mixmod->G;i++){
-		log_full_posterior += mixmod->components[ mixmod->whereis[i] ]->log_prob;
-	}
+	for( g=0; g<G; g++ ) log_full_posterior += mixmod->components[ wis[g] ]->log_prob;
 	
 	/*undiscriminating*/
 	
 	log_full_posterior += mixmod->undiscriminating->log_prob;
 	
 	/*prior on variable inclusion*/
-	d = 0;
-	for(i=0;i<mixmod->d;i++) d += mixmod->varindicator[i];
+	for( j=0; j<d; j++ ) v += mixmod->varindicator[j];
 	
 	log_full_posterior += BLCA_l_prior_variable_include(d,mixmod);
 	
@@ -83,25 +81,33 @@ double BLCA_get_full_log_posterior(struct mix_mod *mixmod)
 double BLCA_get_full_log_posterior_x2(struct mix_mod *mixmod)
 {
 
-	double log_full_posterior=0., s=0., r=0.;
-	int j,i,c;
+  int j, g, c, G = mixmod->G, d = mixmod->d, *vind = mixmod->varindicator, *ncat = mixmod->ncat, *N;
+	double log_full_posterior=0.0, a, s=0.0, r=0.0, eps=1E-10, *alpha_prior = mixmod->alpha_prior, *beta_prior, *prob, *w = mixmod->weights;
+	struct component *comp;
 
-	/*model normalizing constant*/
-	
-	//log_full_posterior = lgamma(mixmod->G*mixmod->alpha) - mixmod->G*lgamma(mixmod->alpha);
-	
-	for(i=0;i<mixmod->G;i++){
-		s += mixmod->alpha_prior[i];
-		log_full_posterior -= lgamma( mixmod->alpha_prior[i] );
-		log_full_posterior += (mixmod->components[i]->n_g + mixmod->alpha_prior[i] -1.)*log(mixmod->weights[i]);
-		for(j=0;j<mixmod->d;j++){
-		
-			if( mixmod->varindicator[j] )
+	for( g=0; g<G; g++ )
+	{
+	  comp = mixmod->components[g];
+		s += alpha_prior[g];
+		log_full_posterior -= lgamma( alpha_prior[g] );
+		a = w[g];
+		if( a < eps ) a = eps;
+		log_full_posterior += (comp->n_g + alpha_prior[g] - 1.0) * log( a );
+		for( j=0; j<d; j++ )
+		{
+			if( vind[j] )
 			{
-				r = 0.;
-				for(c=0;c<mixmod->ncat[j];c++){
-					log_full_posterior -= lgamma( mixmod->beta_prior[i][j][c] ); 
-					log_full_posterior += (mixmod->components[i]->N[j][c] + mixmod->beta_prior[i][j][c] - 1.)*log(mixmod->components[i]->prob_variables[j][c]);				r += mixmod->beta_prior[i][j][c] ;
+				r = 0.0;
+			  N =  comp->N[j];
+			  beta_prior = mixmod->beta_prior[g][j];
+			  prob = comp->prob_variables[j];
+				for( c=0; c<ncat[j]; c++ )
+				{
+					log_full_posterior -= lgamma( beta_prior[c] ); 
+				  a = prob[c];
+				  if( a < eps ) a = eps;
+					log_full_posterior += ( N[c] + beta_prior[c] - 1.0) * log( a );				
+					r += beta_prior[c] ;
 				}
 				log_full_posterior += lgamma(r);
 				//log_full_posterior += lgamma(mixmod->ncat[j]*mixmod->beta) - mixmod->ncat[j]*lgamma(mixmod->beta);
@@ -115,129 +121,150 @@ double BLCA_get_full_log_posterior_x2(struct mix_mod *mixmod)
 
 double BLCA_get_log_likelihood(struct mix_mod *mixmod)
 {
- 	/*get log likelihood using stable log-sum-exp evaluation*/
-
-	double log_likelihood = 0., s=0., r=0., *ld = calloc(mixmod->G , sizeof(double)) ;
-	int g, k, j, c;
+ 	/*get log likelihood using stable log-sum-exp evaluation-- only to be used for EM*/
+ 	int g, k, j, c, G = mixmod->G, n = mixmod->n, d = mixmod->d, 
+ 	  *ncat = mixmod->ncat, *vind = mixmod->varindicator, *y = mixmod->y;
+	double a, llik = 0.0, s=0.0, r=0.0, eps=1E-10, *prob, *w = mixmod->weights, *beta_prior, *alpha_prior, *prob_variables ;
+  double *ld = (double *)calloc(G,sizeof(double)) ;
+	struct component *comp;
 	
-	for( k=0; k<mixmod->n; k++ ){
-		for( g=0; g<mixmod->G; g++ ){
-			ld[g] = 0.;
-			ld[g] += log( mixmod->weights[g] );
-			for( j=0; j<mixmod->d; j++ ){
-				if( mixmod->varindicator[j] )
+	for( k=0; k<n; k++ )
+	{
+		for( g=0; g<G; g++ )
+		{
+		  comp = mixmod->components[g];
+			ld[g] = 0.0;
+			a = w[g] ;
+			if( a < eps ) a = eps;
+			ld[g] += log( a );
+			for( j=0; j<d; j++ )
+			{
+				if( vind[j] )
 				{
-					c = mixmod->Y[j][k] ;
-					ld[g] += log( mixmod->components[g]->prob_variables[j][c] ) ; 
+				  prob = comp->prob_variables[j];
+					a = prob[ y[j] ];
+					if( a < eps ) a = eps;
+					ld[g] += log( a ) ; 
 				}
 			}
-		
 		}
-		log_likelihood += BLCA_get_log_sum_exp( ld, mixmod->G ) ; 
+		llik += BLCA_get_log_sum_exp( ld, G ) ; 
+	  y += d;
 	}
-	
-	//Rprintf("\nloglike = %lf", log_likelihood );
 	
 	// additional terms for prior if looking for MAP 
 	if( mixmod->EM_MAP )
 	{
-		for( g=0; g<mixmod->G; g++ ) 
+	  alpha_prior = mixmod->alpha_prior ; 
+		for( g=0; g<G; g++ ) 
 		{
-			s += mixmod->alpha_prior[g];
-			log_likelihood -= lgamma( mixmod->alpha_prior[g] );
-			log_likelihood += ( mixmod->alpha_prior[g] - 1. ) *  log( mixmod->weights[g] ) ;
-			for( j=0; j<mixmod->d; j++ )
+			s += alpha_prior[g];
+			llik -= lgamma( alpha_prior[g] );
+			llik += ( alpha_prior[g] - 1.0 ) *  log( mixmod->weights[g] ) ;
+			for( j=0; j<d; j++ )
 			{
-				if( mixmod->varindicator[j] )
+				if( vind[j] )
 				{
-					r = 0.;
-					for( c=0; c<mixmod->ncat[j]; c++ ) 
+				  beta_prior = mixmod->beta_prior[g][j] ;
+				  prob_variables = mixmod->components[g]->prob_variables[j];
+					r = 0.0;
+					for( c=0; c<ncat[j]; c++ ) 
 					{
-						r += mixmod->beta_prior[g][j][c];
-						log_likelihood -= lgamma( mixmod->beta_prior[g][j][c] );
-						log_likelihood += ( mixmod->beta_prior[g][j][c] - 1. ) * log( mixmod->components[g]->prob_variables[j][c] );
+						r += beta_prior[c];
+						llik -= lgamma( beta_prior[c] );
+						llik += ( beta_prior[c] - 1.0 ) * log( prob_variables[c] );
 					}
-					log_likelihood += lgamma(r);
+					llik += lgamma(r);
 				}
 			}
 		
 		}
 		
-		log_likelihood += lgamma(s);
+		llik += lgamma(s);
 		
 		//Rprintf("\n loglike 2 = %lf ", log_likelihood);
 	}
 	
 	free(ld);
-	return( log_likelihood ) ;
+	return( llik ) ;
 }
 
 
 double BLCA_get_VB_bound( struct mix_mod *mixmod )
 {
 	
-	int k, g, j, c;
-	double Elogp = 0., Elogq = 0.;
+	int k, g, j, c, n = mixmod->n, d = mixmod->d, G = mixmod->G, *vind = mixmod->varindicator, *ncat = mixmod->ncat, *y = mixmod->y ;
+	double ex_q_logp = 0.0, ex_q_logq = 0.0, sm, *s, *di_beta_ud, eps = 1E-10, *lg_sum_beta, *lg_beta_sum, *alpha_ud, *di_alpha_ud, *colsums = (double *)calloc(G, sizeof(double)) ;
 	struct component *comp;
 	
-	for( k=0; k<mixmod->n; k++ )
+	//s = mixmod->s[0] ;
+	
+	ex_q_logp = mixmod->lg_sum_alpha - mixmod->lg_alpha_sum ; //prior terms
+	
+	for( k=0; k<n; k++ )
 	{
-		for( g=0; g<mixmod->G; g++ )
+	  s = mixmod->s[k] ; 
+		for( g=0; g<G; g++ )
 		{
+		  colsums[g] += s[g] ; 
+		  
 			comp = mixmod->components[g] ;
+			//ex_q_logp += s[g] * ( mixmod->di_alpha_ud[g] - mixmod->di_sum_alpha_ud ) ;
 		
-			Elogp += mixmod->s[k][g] * ( mixmod->di_alpha_ud[g] - mixmod->di_sum_alpha_ud ) ;
-		
-			for( j=0; j<mixmod->d; j++ )
+			for( j=0; j<d; j++ )
 			{
-				if( mixmod->varindicator[j] )
+				if( vind[j] )
 				{
-					c = mixmod->Y[j][k] ;
-					Elogp += comp->di_beta_ud[j][c] - comp->di_sum_beta_ud[j] ;
+					c = y[j] ;
+					ex_q_logp += s[g] * ( comp->di_beta_ud[j][c] - comp->di_sum_beta_ud[j] ) ;
 				}	
 			}
 			
-			if( mixmod->s[k][g] < 1E-10 )
-				Elogq += 0.;
-			else
-				Elogq += mixmod->s[k][g] * log( mixmod->s[k][g] );
-			
+			if( s[g] > eps ) ex_q_logq += s[g] * log( s[g] ); //don't do anything if below threshold
 		}
+		y += d ;
 	}
 	
-	double sum_j = 0;
+	for( g=0; g<G; g++ ) ex_q_logp += colsums[g] * ( mixmod->di_alpha_ud[g] - mixmod->di_sum_alpha_ud ) ;
 	
-	for( g=0; g<mixmod->G; g++ )
+	sm = 0.0;
+	for( g=0; g<G; g++ )
 	{
+		ex_q_logp += (mixmod->alpha_prior[g] - 1.0) * ( mixmod->di_alpha_ud[g] - mixmod->di_sum_alpha_ud ) ;
+		
 		comp = mixmod->components[g];
 		
-		for( j=0; j<mixmod->d; j++ )
+		lg_sum_beta = mixmod->lg_sum_beta[g];
+		lg_beta_sum = mixmod->lg_beta_sum[g];
+	  
+		for( j=0; j<d; j++ )
 		{
-			if( mixmod->varindicator[j] )
+			if( vind[j] )
 			{
-				sum_j = 0.;
-				Elogp += lgamma( mixmod->ncat[j] * mixmod->beta ) - mixmod->ncat[j] * lgamma( mixmod->beta ) ;
-				for( c=0; c<mixmod->ncat[j]; c++ )
+				sm = 0.0;
+			  ex_q_logp += lg_sum_beta[j] - lg_beta_sum[j];
+				for( c=0; c<ncat[j]; c++ )
 				{
-					Elogp += ( mixmod->beta - 1. ) * ( comp->di_beta_ud[j][c] - comp->di_sum_beta_ud[j] ) ;
-					Elogq += -lgamma( comp->beta_ud[j][c] ) + ( comp->beta_ud[j][c] - 1. ) * ( comp->di_beta_ud[j][c] - comp->di_sum_beta_ud[j] ) ;
-					sum_j  += comp->beta_ud[j][c]; 
+				  ex_q_logp += (mixmod->beta_prior[g][j][c] - 1.0) * ( comp->di_beta_ud[j][c] - comp->di_sum_beta_ud[j] ) ; 
+					ex_q_logq += ( comp->beta_ud[j][c] - 1.0 ) * ( comp->di_beta_ud[j][c] - comp->di_sum_beta_ud[j] ) - lgamma( comp->beta_ud[j][c] ) ;
+					sm  += comp->beta_ud[j][c]; 
 				}
-				Elogq += lgamma( sum_j ) ;
+				ex_q_logq += lgamma( sm ) ;
 			}
 		}
 	}
 	
-	Elogp += lgamma( mixmod->G * mixmod->alpha ) - mixmod->G * lgamma( mixmod->alpha ) ; 
-	
-	double sum_g = 0.;
-	for( g=0; g<mixmod->G; g++ )
+	sm = 0.0;
+	alpha_ud = mixmod->alpha_ud ;
+	di_alpha_ud = mixmod->di_alpha_ud;
+	for( g=0; g<G; g++ )
 	{
-		Elogp += ( mixmod->alpha - 1. ) * ( mixmod->di_alpha_ud[g] - mixmod->di_sum_alpha_ud ) ;
-		Elogq += - mixmod->alpha_ud[g] + ( mixmod->alpha_ud[g] - 1. ) * ( mixmod->di_alpha_ud[g] - mixmod->di_sum_alpha_ud  ) ;
-		sum_g += mixmod->alpha_ud[g] ;
+		ex_q_logq += ( alpha_ud[g] - 1.0 ) * ( di_alpha_ud[g] - mixmod->di_sum_alpha_ud  ) - lgamma( alpha_ud[g] )  ;
+	  sm += alpha_ud[g] ;
 	}
-	Elogq += lgamma( sum_g ) ;
+	ex_q_logq += lgamma( sm );
 	
-	return( Elogp - Elogq );
+	free(colsums) ; 
+	
+	return( ex_q_logp - ex_q_logq );
 }
