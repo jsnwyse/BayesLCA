@@ -1,7 +1,10 @@
-blca.boot <- function( X, G, ncat=NULL, alpha=1,beta=1, delta=1, start.vals= c("single","across"), counts.n=NULL, model.indicator=NULL, fit=NULL, iter=2000,  B=100, verbose=TRUE, verbose.update=100, conv=1e-06, small=1e-10, MAP=TRUE)
+blca.boot <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1, 
+                       start.vals= c("single","across"), counts.n=NULL, fit=NULL, 
+                       iter=2000,  B=100, verbose=TRUE, verbose.update=100, conv=1e-06, small=1e-10, MAP=TRUE)
   {
     # check if data is simulated 
     if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
+    if( !is.null(formula) ) X <- model.frame( formula, data=X )
     
     #list of returns
     args.passed <- as.list( environment() )
@@ -27,12 +30,12 @@ blca.boot <- function( X, G, ncat=NULL, alpha=1,beta=1, delta=1, start.vals= c("
     N<-nrow(X) 
     M<-ncol(X) 
     
-    if( is.null(model.indicator) )
-    {
-      model.indicator <- rep(1,M)
-    }else if( length(model.indicator) != M ){
-      stop("model.indicator must have length ncol(X)")
-    }
+    #if( is.null(model.indicator) )
+    #{
+    model.indicator <- rep(1,M)
+    #}else if( length(model.indicator) != M ){
+    #  stop("model.indicator must have length ncol(X)")
+    #}
     
     M.in <- sum( model.indicator ) 
     if( prod( ncat[model.indicator==1] ) <= (M.in+1)*G) stop("maximum numer of classes that should be run for this data is ", floor(prod(ncat[model.indicator==1])/(M.in+1)) )
@@ -40,7 +43,8 @@ blca.boot <- function( X, G, ncat=NULL, alpha=1,beta=1, delta=1, start.vals= c("
     if(is.null(fit)){
       if(verbose==TRUE) cat("Object 'fit' not supplied: obtaining starting values via blca.em...\n")
       if(is.null(G)) warning("Number of groups must be specified", call.=FALSE )
-      xx<-blca.em(X, G, ncat=ncat, iter=1000, alpha=alpha, beta=beta, delta=delta , start.vals= start.vals, model.indicator=model.indicator, for.boot=TRUE, verbose=FALSE, conv=conv) 
+      xx<-blca.em(X, G, formula, ncat=ncat, iter=1000, alpha=alpha, beta=beta, delta=delta , 
+                  start.vals= start.vals, for.boot=TRUE, verbose=FALSE, conv=conv) 
       #conv<-xx$eps
       if(verbose==TRUE) cat("Starting values obtained...\n")
     }else{

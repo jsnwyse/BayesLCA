@@ -1,9 +1,11 @@
 blca.vb <-
-  function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single", "across"), counts.n=NULL, model.indicator=NULL, iter=5000, restarts=5, verbose=TRUE, conv=1e-6, small=1e-10 )
+  function( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single", "across"), 
+            counts.n=NULL, iter=5000, restarts=5, verbose=TRUE, conv=1e-6, small=1e-10 )
   {
     
     # check if data is simulated 
     if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
+    if( !is.null(formula) ) X <- model.frame( formula, data=X )
     
     #list of returns
     args.passed <- as.list( environment() )
@@ -29,12 +31,12 @@ blca.vb <-
     N<-nrow(X) 
     M<-ncol(X)
     
-    if( is.null(model.indicator) )
-    {
-      model.indicator <- rep(1,M)
-    }else if( length(model.indicator) != M ){
-      stop("model.indicator must have length ncol(X)")
-    }
+    #if( is.null(model.indicator) )
+    #{
+    model.indicator <- rep(1,M)
+    #}else if( length(model.indicator) != M ){
+    #  stop("model.indicator must have length ncol(X)")
+    #}
     
     out.prior <- blca.check.prior( alpha, beta, delta, G, M, ncat )
     prior.init.type <- out.prior$prior.init.type

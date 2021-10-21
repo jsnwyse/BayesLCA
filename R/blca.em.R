@@ -1,8 +1,11 @@
 blca.em <-
-function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","across"), counts.n=NULL, model.indicator=NULL, iter=2000, restarts=5, verbose=TRUE, sd=FALSE, sd.method=c("delta","boot"), conv=1e-6, small=1e-10, MAP=TRUE, pars.init=NULL, for.boot=FALSE )
+function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1, 
+          start.vals = c("single","across"), counts.n=NULL, iter=2000, restarts=5, verbose=TRUE, sd=FALSE, 
+          sd.method=c("delta","boot"), conv=1e-6, small=1e-10, MAP=TRUE, pars.init=NULL, for.boot=FALSE )
 {
 	# check if data is simulated 
   if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
+  if( !is.null(formula) ) X <- model.frame( formula, data=X )
   
   args.passed <- as.list( environment() )
   #list of returns
@@ -27,12 +30,12 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	N<-nrow(X) 
 	M<-ncol(X)
 	
-	if( is.null(model.indicator) )
-	{
-		model.indicator <- rep(1,M)
-	}else if( length(model.indicator) != M ){
-		stop("model.indicator must have length ncol(X)")
-	}
+	#if( is.null(model.indicator) )
+	#{
+	model.indicator <- rep(1,M)
+	#}else if( length(model.indicator) != M ){
+	#	stop("model.indicator must have length ncol(X)")
+  #}
 
 	out.prior <- blca.check.prior( alpha, beta, delta, G, M, ncat )
 	prior.init.type <- out.prior$prior.init.type
@@ -192,9 +195,11 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	
 	
 	if(any(ncat > 2)){
-		x$itemprob.tidy <- data.frame(itemprob = vec.itemprobs, group = itemprobs.group.ind, variable = itemprobs.var.ind, category = itemprobs.cat.ind)
+		x$itemprob.tidy <- data.frame(itemprob = vec.itemprobs, group = itemprobs.group.ind, 
+		                              variable = itemprobs.var.ind, category = itemprobs.cat.ind)
 	}else{ 
-	  x$itemprob <- matrix(vec.itemprobs[itemprobs.cat.ind == "Cat 1"], nrow = G, ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), names(x$itemprob)))
+	  x$itemprob <- matrix(vec.itemprobs[itemprobs.cat.ind == "Cat 1"], nrow = G, 
+	                       ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), names(x$itemprob)))
 	  }
 
 	x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G )
@@ -256,7 +261,7 @@ function( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","ac
 	
 	x$method <- "em"
 	
-	if( MAP & !for.boot ) warning("If priors different from the package default are used, then AIC and BIC should not be used for model comparison: MAP must be FALSE for MLE", call. = FALSE)
+	if( MAP & !for.boot ) warning("AIC and BIC will not be correct for model comparison if priors changed from default: set MAP to FALSE for MLE", call. = FALSE)
 	
 	x <- blca.return.order( x )
 

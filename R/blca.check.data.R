@@ -40,6 +40,12 @@ blca.check.data <- function( X, counts.n, ncat )
 		if( is.data.frame(X) )
 		{
 		  
+		  # do character variables first and cast as factors
+		  ischr <- unlist( lapply( X, is.character) )
+		  chrs <- which( ischr == TRUE )
+		  
+		  for( k in chrs ) X[,k] <- factor( X[,k] )
+		  
 			isfact <- unlist( lapply( X, is.factor ) )
 			factors <- which( isfact == TRUE ) 
 		

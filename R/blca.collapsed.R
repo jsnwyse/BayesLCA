@@ -1,7 +1,13 @@
-blca.collapsed <- function( X,  G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals=c("single"), counts.n=NULL, iter=5000, burn.in=500, thin=1, G.sel=TRUE, var.sel=FALSE, post.hoc.run=TRUE, control.post.hoc=list(iter=2000,burn.in=500,thin=1), var.prob.thresh=0.75, n.gibbs=nrow(X), only.gibbs=TRUE, G.max=30, G.prior=dpois(1:G.max, lambda=1), model.indicator=NULL, prob.inc=0.5, hprior.model=FALSE, relabel=TRUE, verbose=TRUE, verbose.update=1000 )
+blca.collapsed <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1, 
+                            start.vals=c("single"), counts.n=NULL, iter=5000, burn.in=500, thin=1, 
+                            G.sel=TRUE, var.sel=FALSE, post.hoc.run=TRUE, control.post.hoc=list(iter=2000,burn.in=500,thin=1), 
+                            var.prob.thresh=0.75, n.gibbs=nrow(X), only.gibbs=TRUE, G.max=30, 
+                            G.prior=dpois(1:G.max, lambda=1)/sum(dpois(1:G.max, lambda=1)), # normalize
+                            prob.inc=0.5, hprior.model=FALSE, relabel=TRUE, verbose=TRUE, verbose.update=1000 )
 {
   # check if data is simulated 
   if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
+  if( !is.null(formula) ) X <- model.frame( formula, data=X )
   
   #list of returns
   x <- list()
@@ -50,7 +56,8 @@ blca.collapsed <- function( X,  G, ncat=NULL, alpha=1, beta=1, delta=1, start.va
   log.post <- numeric(stored)
   prior.include <- numeric(stored)
   
-  if( is.null(model.indicator) ) model.indicator <- rep(1,M) 
+  #if( is.null(model.indicator) ) 
+  model.indicator <- rep(1,M) 
   
   hparam <- c( delta[1], beta[1] )
   accrts <- numeric(6)

@@ -1,7 +1,10 @@
-blca.gibbs <- function( X, G, ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c("prior","single","across"), counts.n=NULL, impute.missing=FALSE, model.indicator=NULL, iter=5000, burn.in=100, thin=1, accept=thin, relabel=TRUE, verbose=TRUE, verbose.update=1000 ) 
+blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c("prior","single","across"), 
+                        counts.n=NULL, model.indicator=NULL, impute.missing=FALSE, iter=5000, burn.in=100, thin=1, accept=thin, 
+                        relabel=TRUE, verbose=TRUE, verbose.update=1000 ) 
 {
   # check if data is simulated 
   if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
+  if( !is.null(formula) ) X <- model.frame( formula, data=X )
   
   #list of returns
   args.passed <- as.list( environment() )
