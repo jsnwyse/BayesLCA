@@ -8,12 +8,12 @@ Bayesian Latent Class Analysis variable and group selection via collapsed sampli
 \code{blca.collapsed} performs sampling from a collapsed posterior distribution to select the  number of hidden classes G and the most relevant clustering variables if requested.
 }
 \usage{
-blca.collapsed( X,  G, ncat=NULL, alpha=1, beta=1, delta=1, 
+blca.collapsed( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1, 
                 start.vals=c("single"), counts.n=NULL, iter=5000, burn.in=500, thin=1, 
                 G.sel=TRUE, var.sel=FALSE, post.hoc.run=TRUE, 
                 control.post.hoc=list(iter=2000,burn.in=500,thin=1), 
                 var.prob.thresh=0.75, n.gibbs=nrow(X), only.gibbs=TRUE, 
-                G.max=30, G.prior=dpois(1:G.max, lambda=1), model.indicator=NULL, 
+                G.max=30, G.prior=dpois(1:G.max, lambda=1)/sum(dpois(1:G.max, lambda=1)), 
                 prob.inc=0.5, hprior.model=FALSE, relabel=TRUE, verbose=TRUE, 
                 verbose.update=1000 )
 }
@@ -25,33 +25,30 @@ Data matrix or data frame. This may take one of several forms, see \code{\link{d
   \item{G}{
 The number of classes to run LCA for in the case of \code{G.sel=FALSE}, otherwise this gives the initial number of groups for the sampler.
 }
-\item{ncat}{
+  \item{formula}{
+Optional formula declaring variables to be used from \code{X} e.g. ``\code{~ x1 + x2}''.
+}
+  \item{ncat}{
 	The number of categories in each variable (optional).
 }
-
   \item{alpha, beta}{
 The prior values for the data conditional on group membership. Defaults to 1, i.e, a uniform prior, for each value.
 }
   \item{delta}{
 Prior values for the mixture components in model.  Defaults to 1, i.e., a uniform prior.  May be single or vector valued (of length G).
 }
-
  \item{start.vals}{
 Denotes how class membership is to be assigned during the initial step of the algorithm. Initialization is always "single", which randomly assigns data points exclusively to one class.
 }
-
-\item{counts.n}{
+  \item{counts.n}{
 If data patterns have already been counted, a data matrix consisting of each unique data pattern can be supplied to the function, in addition to a vector counts.n, which supplies the corresponding number of times each pattern occurs in the data. 
 }
-
   \item{iter}{
 The number of iterations to run the collapsed gibbs sampler for \bold{after} burn-in.
 }
-
   \item{burn.in}{
 Number of iterations to run the Gibbs sampler for before beginning to store values.
 }
-
   \item{thin}{
 The thinning rate for samples from the distribution, in order to achieve good mixing. Should take a value greater  >0 and <=1. Defaults to 1.
 }
@@ -61,48 +58,40 @@ Logical, indicating whether a search over the number of components should be per
 \item{var.sel}{
 	Logical, indicating whether a variable selection search should be performed.
 }
-
-\item{post.hoc.run}{
+  \item{post.hoc.run}{
 	Logical, indicating whether a post hoc run should be performed on the optimal model found from model search algorithm.
 }
-
-\item{control.post.hoc}{
+  \item{control.post.hoc}{
   List specifying settings for a post hoc Gibbs sampling run to get parameter estimates for most visited model if \code{G.sel=TRUE}.
 }
-
 \item{var.prob.thresh}{
  Threshold on posterior probability for inclusion in post hoc run.
 }
-
-\item{n.gibbs}{
+  \item{n.gibbs}{
 	The number of items to randomly sample in each sweep of the class allocation. Defaults to nrow(X), but for large datasets some random selection of rows may be preferred. 
 }
-
   \item{only.gibbs}{
 Logical, indicating if just gibbs sampling alone should be used to update labels, or to allow other moves which can reallocated a number of items at a time.
 }
-\item{G.max}{
+  \item{G.max}{
 	The maximum number of components that should be searched for if \code{G.sel==TRUE}
 }
-\item{G.prior}{
+  \item{G.prior}{
 Prior on the number of components. Defaults to Poisson(1).
 }
-\item{model.indicator}{
-An indicator giving the variables to include. This acts as an initial model if \code{var.sel==TRUE}.
-}
-\item{prob.inc}{
+  \item{prob.inc}{
 Prior probability of including a variable for clustering when inclusion is modelled as a Bernoulli distriubtion a priori.
 }
-\item{hprior.model}{
+  \item{hprior.model}{
 Logical, indicating if the prior probability of variable inclusion should be modelled using a hyperprior and sampled at each iteration.
 }
-\item{relabel}{
+  \item{relabel}{
 Logical, indicating whether a mechanism to correct for label-switching be used or not. Defaults to TRUE.
 }
-\item{verbose}{
+  \item{verbose}{
 Logical, indicating whether a running update should be printed to the screen.
 }
-\item{verbose.update}{
+  \item{verbose.update}{
 If \code{verbose==TRUE} then the interval between summaries are printed to screen. 
 }
 

@@ -8,8 +8,8 @@ Bayesian Latent Class Analysis  via an EM Algorithm
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X. blca.em utilises an expectation-maximisation algorithm to find maximum \emph{a posteriori} (map) estimates of the parameters.
 }
 \usage{
-blca.em( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","across"),
-        counts.n=NULL, model.indicator=NULL, iter=2000, restarts=5, verbose=TRUE, 
+blca.em( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1, 
+        start.vals = c("single","across"), counts.n=NULL, iter=2000, restarts=5, verbose=TRUE, 
         sd=FALSE, sd.method=c("delta","boot"), conv=1e-6, small=1e-10, 
         MAP=TRUE, pars.init=NULL, for.boot=FALSE )
 }
@@ -20,31 +20,26 @@ blca.em( X, G, ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single","acr
   \item{X}{
 Data matrix or data frame. This may take one of several forms, see \code{\link{data.blca}}.
 }
-
   \item{G}{
 The number of classes to run lca for.
 }
-\item{ncat}{
-	The number of categories in each variable (column).
+  \item{formula}{
+Optional formula declaring variables to be used from \code{X} e.g. ``\code{~ x1 + x2}''.
 }
-
+  \item{ncat}{
+The number of categories in each variable (column).
+}
   \item{alpha, beta}{
 The prior values for the data conditional on group membership. These may take several forms: a single value, recycled across all groups and columns, a vector of length G or M (the number of columns in the data), or finally, a \eqn{G \times M} matrix specifying each prior value separately. Defaults to 1, i.e, a uniform prior, for each value.
 }
   \item{delta}{
 Prior values for the mixture components in model.  Defaults to 1, i.e., a uniform prior.  May be single or vector valued (of length G).
 }
-
  \item{start.vals}{
 Denotes how class membership is to be assigned during the initial step of the algorithm. Two character values may be chosen, "single", which randomly assigns data points exclusively to one class, or "across", which assigns class membership via  \code{\link[stats]{runif}}. Alternatively, class membership may be pre-specified, either as a vector of class membership, or as a matrix of probabilities. Defaults to "single".
 }
-
-\item{counts.n}{
+  \item{counts.n}{
 If data patterns have already been counted, a data matrix consisting of each unique data pattern can be supplied to the function, in addition to a vector counts.n, which supplies the corresponding number of times each pattern occurs in the data. 
-}
-
-\item{model.indicator}{
-Binary vector of length the number of columns of X giving the variables to include when fitting the LCA model (a 1 means include).
 }
   \item{iter}{
 The maximum number of iterations that the algorithm runs over.  Will stop early if the algorithm is deemed to converge.
@@ -58,23 +53,22 @@ Logical valued. If \code{TRUE}, the log-posterior from each run is printed.
   \item{sd}{
 Specifies whether posterior standard deviation estimates (or standard errors when \code{MAP == FALSE}) should also be returned.
 }
-
   \item{sd.method}{
   Method for computing the standard deviation (standard errors when \code{MAP} is \code{FALSE}). The "delta" method is faster, but may have less accuracy than the "boot" or bootstrap method.
   }
-
   \item{conv}{
 Convergence criteria, i.e., how small should the log-posterior increase become before the algorithm is deemed to have converged?  Set relative to the size of the data matrix.
 }
   \item{small}{
 To ensure numerical stability a small constant is added to certain parameter estimates. Defaults to 1e-100.
 }
-\item{MAP}{
+  \item{MAP}{
 Logical determining whether the maximum a posteriori estimate should be computed. If \code{TRUE} then the priors are included in the M-step update. 
 }
-\item{pars.init}{Parameter for use by the fuction \code{\link{blca.boot}} to provide initialization to the EM algorithm.}
-
-\item{for.boot}{
+  \item{pars.init}{
+  Parameter for use by the fuction \code{\link{blca.boot}} to provide initialization to the EM algorithm.
+}
+  \item{for.boot}{
 Logical argument used by the function \code{\link{blca.boot}}. Should be set to \code{TRUE} if the result of the EM call will be used as input to the function \code{\link{blca.boot}}.
 }
 }

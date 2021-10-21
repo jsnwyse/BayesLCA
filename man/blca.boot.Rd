@@ -8,8 +8,8 @@ Bayesian Latent Class Analysis via an EM Algorithm and Using Empirical Bootstrap
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X.  blca.boot repeatedly samples from X with replacement then utilises an EM algorithm to find maximum posterior (MAP) and standard error estimates of the parameters.
 }
 \usage{
-blca.boot(X, G, ncat=NULL, alpha=1, beta=1, delta=1, 
-          start.vals= c("single","across"), counts.n=NULL, model.indicator=NULL, 
+blca.boot(X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1, 
+          start.vals= c("single","across"), counts.n=NULL, 
           fit=NULL, iter=2000,  B=100, verbose=TRUE, verbose.update=100,
           conv=1e-06, small=1e-10, MAP=TRUE)
 }
@@ -20,6 +20,9 @@ Data matrix or dataframe. This may take one of several forms, see \code{\link{da
 }
   \item{G}{
 The number of classes to run lca for.
+}
+  \item{formula}{
+Optional formula declaring variables to be used from \code{X} e.g. ``\code{~ x1 + x2}''.
 }
 \item{ncat}{
 	The number of categories in each variable (column).
@@ -36,9 +39,7 @@ Denotes how class membership is to be assigned during the initial step of the al
 \item{counts.n}{
 If data patterns have already been counted, a data matrix consisting of each unique data pattern can be supplied to the function, in addition to a vector counts.n, which supplies the corresponding number of times each pattern occurs in the data. 
 }
-\item{model.indicator}{
-Binary vector of length the number of columns of X giving the variables to include when fitting the LCA model (a 1 means include).
-}
+
  \item{fit}{
 Previously fitted models may be supplied in order to approximate standard error and unbiased point estimates. fit should be an object of class "blca.em". Defaults to NULL if no object is supplied.
 }

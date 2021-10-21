@@ -8,15 +8,18 @@ Bayesian Latent Class Analysis with one of several methods
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X. blca utilises one of: an EM algorithm, a variational Bayes approximation, Gibbs sampling or boot-strapping techniques to find maximum {\emph{ a posteriori}} (MAP), standard error and density estimates of the parameters.
 }
 \usage{
-blca(X, G, ncat=NULL, method = c("em", "gibbs", "boot", "vb", "collapsed"), ...)
+blca(X, G, formula=NULL, ncat=NULL, method = c("em", "gibbs", "boot", "vb", "collapsed"), ...)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{X}{
 The data matrix. This may take one of several forms, see \code{\link{data.blca}}.
 }
-\item{ncat}{
+  \item{ncat}{
 	The number of categories in each variable (column).
+}
+  \item{formula}{
+Optional formula declaring variables to be used from \code{X} e.g. ``\code{~ x1 + x2}''.
 }
   \item{G}{
 The number of classes to run lca for.

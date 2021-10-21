@@ -8,8 +8,8 @@ Bayesian Latent Class Analysis  via a variational Bayes algorithm
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X. blca.vb uses a variational EM algorithm to find the distribution which best approximates the parameters' true distribution.
 }
 \usage{
-blca.vb( X, G, ncat=NULL, alpha=1, beta=1, delta=1, 
-        start.vals = c("single", "across"), counts.n=NULL, model.indicator=NULL, 
+blca.vb( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, 
+        start.vals = c("single", "across"), counts.n=NULL, 
         iter=5000, restarts=5, verbose=TRUE, conv=1e-6, small=1e-10 )
 }
 
@@ -19,32 +19,26 @@ blca.vb( X, G, ncat=NULL, alpha=1, beta=1, delta=1,
   \item{X}{
 The data matrix. This may take one of several forms, see \code{\link{data.blca}}.
 }
-
   \item{G}{
 The number of classes to run LCA for.
+}
+  \item{formula}{
+Optional formula declaring variables to be used from \code{X} e.g. ``\code{~ x1 + x2}''.
 }
 \item{ncat}{
 	The number of categories in each variable (column).
 }
-
   \item{alpha, beta}{
 The prior values for the data conditional on group membership. These may take several forms: a single value, recycled across all groups and columns, a vector of length G or M (the number of columns in the data), or finally, a G x M matrix specifying each prior value separately. Defaults to 1, i.e, a uniform prior, for each value.
 }
   \item{delta}{
 Prior values for the mixture components in model.  Defaults to 1, i.e., a uniform prior.  May be single or vector valued (of length G).
 }
-
  \item{start.vals}{
 Denotes how class membership is to be assigned during the initial step of the algorithm. Two character values may be chosen, "single", which randomly assigns data points exclusively to one class, or "across", which assigns class membership via  \code{\link{runif}}. Alternatively, class membership may be pre-specified, either as a vector of class membership, or as a matrix of probabilities. Defaults to "single".
 }
-
-\item{counts.n}{
+  \item{counts.n}{
 If data patterns have already been counted, a data matrix consisting of each unique data pattern can be supplied to the function, in addition to a vector counts.n, which supplies the corresponding number of times each pattern occurs in the data. 
-}
-
-
-\item{model.indicator}{
-Binary vector of length the number of columns of X giving the variables to include when fitting the LCA model (a 1 means include).
 }
   \item{iter}{
 The maximum number of iterations that the algorithm runs over.  Will stop earlier if the algorithm converges.

@@ -8,9 +8,9 @@ Bayesian Latent Class Analysis via Gibbs Sampling
 Latent class analysis (LCA) attempts to find G hidden classes in binary data X. blca.gibbs performs Gibbs sampling to sample from the parameters' true distribution.
 }
 \usage{
-blca.gibbs( X, G, ncat=NULL,  alpha=1, beta=1, delta=1,
- start.vals=c("prior","single","across"), counts.n=NULL,
-  impute.missing=FALSE,  model.indicator=NULL, iter=5000, burn.in=100, thin=1,
+blca.gibbs( X, G, formula=NULL, ncat=NULL,  alpha=1, beta=1, delta=1,
+ start.vals=c("prior","single","across"), counts.n=NULL, model.indicator=NULL,
+  impute.missing=FALSE, iter=5000, burn.in=100, thin=1,
   accept=thin, relabel=TRUE, verbose=TRUE, verbose.update=1000 ) 
 }
 %- maybe also 'usage' for other objects documented here.
@@ -18,34 +18,32 @@ blca.gibbs( X, G, ncat=NULL,  alpha=1, beta=1, delta=1,
    \item{X}{
 The data matrix. This may take one of several forms, see \code{\link{data.blca}}.
 }
-
   \item{G}{
 The number of classes to run lca for.
 }
-\item{ncat}{
+  \item{formula}{
+Optional formula declaring variables to be used from \code{X} e.g. ``\code{~ x1 + x2}''.
+}
+  \item{ncat}{
 	The number of categories in each variable (column).
 }
-
   \item{alpha, beta}{
 The prior values for the data conditional on group membership. These may take several forms: a single value, recycled across all groups and columns, a vector of length G or M (the number of columns in the data), or finally, a G x M matrix specifying each prior value separately. Defaults to 1, i.e, a uniform prior, for each value.
 }
   \item{delta}{
 Prior values for the mixture components in model.  Defaults to 1, i.e., a uniform prior.  May be single or vector valued (of length G).
 }
- \item{start.vals}{
+  \item{start.vals}{
 Denotes how class membership is to be assigned during the initial step of the algorithm. One of three character values may be chosen: "prior", which samples parameter values from prior distributions, "single", which randomly assigns data points exclusively to one class, or "across", which assigns class membership via  \code{\link{runif}}. Alternatively, class membership may be pre-specified, either as a vector of class membership, or as a matrix of probabilities. Defaults to "single".
 }
-
-\item{counts.n}{
+  \item{counts.n}{
 If data patterns have already been counted, a data matrix consisting of each unique data pattern can be supplied to the function, in addition to a vector counts.n, which supplies the corresponding number of times each pattern occurs in the data. 
 }
-
-\item{impute.missing}{
-Argument for Gibbs sampling only. If \code{TRUE}, then impute any missing values by sampling from their full conditionals.
-}
-
 \item{model.indicator}{
-Binary vector of length the number of columns of X giving the variables to include when fitting the LCA model (a 1 means include).
+Convenience argument; vector of binary indicators to specify the variables to be included in the model with 1 indicating a variable to be included.
+}
+  \item{impute.missing}{
+Argument for Gibbs sampling only. If \code{TRUE}, then impute any missing values by sampling from their full conditionals.
 }
   \item{iter}{
 The number of iterations to run the gibbs sampler for \bold{after} burn-in.
