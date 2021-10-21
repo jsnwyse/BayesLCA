@@ -8,8 +8,10 @@ importFrom(fields, image.plot)
 importFrom(nlme, fdHess)
 importFrom(numDeriv, hessian)
 importFrom(grDevices, devAskNewPage, heat.colors, rainbow)
-importFrom(graphics, par, abline, axis, lines, matplot, mosaicplot, mtext, plot, plot.new, plot.window, rect )
-importFrom(stats, na.omit, dbeta, dbinom, dpois, density, rbeta, rmultinom, rbinom, runif, sd, var, weighted.mean)
+importFrom(graphics, par, abline, axis, lines, matplot, mosaicplot, 
+           mtext, plot, plot.new, plot.window, rect )
+importFrom(stats, na.omit, dbeta, dbinom, dpois, density, rbeta, 
+           rmultinom, rbinom, runif, sd, var, weighted.mean, model.frame )
 importFrom(MASS, ginv)
 
 S3method(as.mcmc, blca.gibbs)
