@@ -3,40 +3,32 @@ blca.boot <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1,
                        iter=2000,  B=100, verbose=TRUE, verbose.update=100, conv=1e-06, small=1e-10, MAP=TRUE)
   {
     # check if data is simulated 
-    if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
-    if( !is.null(formula) ) X <- model.frame( formula, data=X )
-    
     #list of returns
     args.passed <- as.list( environment() )
     x <- list()
     x$call <- match.call()
     x$args <- args.passed
-    
-    # blca.check.missing ...
-    miss <- blca.check.missing( X )
-    if( miss$missing ){
-      warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
-      X <- na.omit(X)
-    } 
-    
+
     # convert X into a numeric matrix and check inputs
-    D <- blca.check.data( X, counts.n, ncat )
-    
+    D <- blca.prep.data( X, formula, counts.n, ncat )    
+ 
     X <- D$X
     ncat <- D$ncat
     x$args$ncat <- ncat
-    x$G <- G
+    x$args$formula <- D$formula
+    levnames <- D$levnames
+    x$G <- G       
     
+    if( !is.null(D$missing.idx) )
+    {
+      warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
+      X <- na.omit(X)	  
+    }
+
     N<-nrow(X) 
     M<-ncol(X) 
-    
-    #if( is.null(model.indicator) )
-    #{
+
     model.indicator <- rep(1,M)
-    #}else if( length(model.indicator) != M ){
-    #  stop("model.indicator must have length ncol(X)")
-    #}
-    
     M.in <- sum( model.indicator ) 
     if( prod( ncat[model.indicator==1] ) <= (M.in+1)*G) stop("maximum numer of classes that should be run for this data is ", floor(prod(ncat[model.indicator==1])/(M.in+1)) )
     
@@ -172,9 +164,9 @@ blca.boot <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1,
         v.probs$mean[[l]] <- v.probs$mean[[l]][o,]
         v.probs$sd[[l]] <- v.probs$sd[[l]][o,]
         rownames( v.probs$mean[[l]] ) <- paste( "Group", 1:G )
-        colnames( v.probs$mean[[l]] ) <- paste("Cat",0:(ncat[j]-1) )
+        colnames( v.probs$mean[[l]] ) <- levnames[[j]] #paste("Cat",0:(ncat[j]-1) )
         rownames( v.probs$sd[[l]] ) <- paste( "Group", 1:G )
-        colnames( v.probs$sd[[l]] ) <- paste("Cat",0:(ncat[j]-1) )
+        colnames( v.probs$sd[[l]] ) <- levnames[[j]] #paste("Cat",0:(ncat[j]-1) )
         l <- l+1
       }
     }		
@@ -203,8 +195,26 @@ blca.boot <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1,
     x$samples <- list()
     
     if( MAP ) x$samples$logpost <- w$logpost else x$samples$loglik <- w$loglike
-    x$samples$itemprob <- var.probs.l
-    x$samples$classprob <- t( weights.mat )
+    
+    # finally reorder the samples for correct prediction of new data 
+    weights.mat <- weights.mat[ , o]
+    for( b in 1:B )
+    {
+      l <- 1
+      for( j in 1:M  )
+      {
+        it <- (b-1)*G
+        if( model.indicator[j] )
+        {
+          var.probs.l[[l]][ it + 1:G , ] = var.probs.l[[l]][ it + o , ] # final reorder as label swapping done
+          l <- l+1
+        }
+      }
+    }
+    
+    
+    x$samples$itemprob <- var.probs.l 
+    x$samples$classprob <- weights.mat 
     
     if(any(ncat > 2)){
       x$itemprob.tidy <- data.frame(itemprob = vec.itemprobs, group = itemprobs.group.ind, variable = itemprobs.var.ind, category = itemprobs.cat.ind)
@@ -219,13 +229,12 @@ blca.boot <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1,
         arr[,,m] <- matrix( var.probs.l[[m]][,1], nrow=B , ncol=G , byrow = TRUE )
       }
       dimnames(arr)[[3]] <- names(v.probs$mean)
-      x$samples$itemprob <- arr
+      #x$samples$itemprob <- arr
     }
     
     npars <- G * sum( model.indicator * ( ncat - 1 ) ) + G - 1
     
     llike <-  blca.compute.log.post( X, ncat, x$classprob, x$itemprob, model.indicator, prior=NULL )
-    x$Z <- predict.blca.pt.estimate( x )
     #llike <- lp$llike
     x$AIC <- 2*llike - 2 * npars
     x$BIC <- 2*llike - npars * log(N)
@@ -239,6 +248,8 @@ blca.boot <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1,
     x$ncat <- ncat
     x$model.indicator <- model.indicator
     x$MAP <- MAP 
+    
+    x$Z <- predict.blca( x, NULL )
     
     x$method <- "boot"
     

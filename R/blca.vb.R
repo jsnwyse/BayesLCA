@@ -1,11 +1,6 @@
-blca.vb <-
-  function( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single", "across"), 
+blca.vb <- function( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, start.vals = c("single", "across"), 
             counts.n=NULL, iter=5000, restarts=5, verbose=TRUE, conv=1e-6, small=1e-10 )
   {
-    
-    # check if data is simulated 
-    if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
-    if( !is.null(formula) ) X <- model.frame( formula, data=X )
     
     #list of returns
     args.passed <- as.list( environment() )
@@ -13,40 +8,34 @@ blca.vb <-
     x$call <- match.call()
     x$args <- args.passed
     
-    # blca.check.missing ... can wrap this in blca.check.data-- 
-    miss <- blca.check.missing( X )
-    if( miss$missing ){
-      warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
-      X <- na.omit(X)
-    } 
-    
     # convert X into a numeric matrix and check inputs
-    D <- blca.check.data( X, counts.n, ncat )
+    D <- blca.prep.data( X, formula, counts.n, ncat )
     
     X <- D$X
+    x$args$formula <- D$formula
     ncat <- D$ncat
     x$args$ncat <- ncat
+    levnames <- D$levnames
     x$G <- G
+    
+    if( !is.null(D$missing.idx) )
+    {
+      warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
+      X <- na.omit(X)	  
+    }
     
     N<-nrow(X) 
     M<-ncol(X)
     
-    #if( is.null(model.indicator) )
-    #{
     model.indicator <- rep(1,M)
-    #}else if( length(model.indicator) != M ){
-    #  stop("model.indicator must have length ncol(X)")
-    #}
-    
+    M.in <- sum( model.indicator ) 
+    if( M.in == 0 ) stop("there are no variables included: check model.indicator")
+
     out.prior <- blca.check.prior( alpha, beta, delta, G, M, ncat )
     prior.init.type <- out.prior$prior.init.type
     gamma <- out.prior$gamma
     delta <- out.prior$delta
-    
-    M.in <- sum( model.indicator ) 
-    if( M.in == 0 ) stop("there are no variables included: check model.indicator")
-   # if( prod( ncat[model.indicator==1] ) <= (M.in+1)*G) stop(paste("maximum numer of classes that should be run for this data is ", floor(prod(ncat[model.indicator==1])/(M.in+1)) ))
-    
+        
     if(is.numeric(restarts)){
       if(length(restarts)>1){
         restarts<- restarts[1]
@@ -178,7 +167,7 @@ blca.vb <-
         par.var.probs.l[[l]] <- matrix( w$pars.variable.probs[(gap+1):(gap + G*ncat[j])], nrow=G, ncol=ncat[j], byrow=TRUE )
         par.var.probs.l[[l]] <- par.var.probs.l[[l]][o,]
         rownames( var.probs.l[[l]] ) <- rownames( se.var.probs.l[[l]] ) <- rownames(par.var.probs.l[[l]]) <-  paste( "Group", 1:G )
-        colnames( var.probs.l[[l]] ) <- colnames( se.var.probs.l[[l]] ) <- colnames(par.var.probs.l[[l]]) <-  paste("Cat",0:(ncat[j]-1) )
+        colnames( var.probs.l[[l]] ) <- colnames( se.var.probs.l[[l]] ) <- colnames(par.var.probs.l[[l]]) <-  levnames[[j]] #paste("Cat",0:(ncat[j]-1) )
         l <- l+1
       }
     }

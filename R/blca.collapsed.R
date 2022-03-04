@@ -6,27 +6,26 @@ blca.collapsed <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delt
                             prob.inc=0.5, hprior.model=FALSE, relabel=TRUE, verbose=TRUE, verbose.update=1000 )
 {
   # check if data is simulated 
-  if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
-  if( !is.null(formula) ) X <- model.frame( formula, data=X )
-  
+  #if( class(X)[1] == "blca.rand" & !is.matrix(X) ) X <- X$X 
+
+  args.passed <- as.list( environment() )
   #list of returns
   x <- list()
   x$call <- match.call()
-  x$args <- as.list( environment() )
+  x$args <- args.passed
 
-  # blca.check.missing ...
-  miss <- blca.check.missing( X )
-  if( miss$missing ){
-    warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
-    X <- na.omit(X)
-  }   
-  
-  # convert X into a numeric matrix and check inputs
-  D <- blca.check.data( X, counts.n, ncat )
+  # convert X into a numeric matrix for passage to C (index from 0) and check inputs
+  D <- blca.prep.data( X, formula, counts.n, ncat )
   
   X <- D$X
   ncat <- D$ncat
   x$args$ncat <- ncat
+  
+  if( !is.null(D$missing.idx) )
+  {
+    warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
+    X <- na.omit(X)	  
+  }
   
   N <- nrow(X)
   M <- ncol(X)
@@ -181,7 +180,8 @@ blca.collapsed <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delt
     mod.star[Mstar] <- 1
     x$model.indicator <- mod.star
     if( verbose ) cat("Running post hoc Gibbs sampling on most probable model...\n")
-    ph.est <- blca.gibbs( na.omit(x$args$X), G=Ghat, model.indicator=mod.star, ncat=ncat, iter=control.post.hoc$iter, burn.in=control.post.hoc$burn.in, thin=control.post.hoc$thin, verbose=FALSE )
+    ph.est <- blca.gibbs( x$args$X, G=Ghat, formula=formula, model.indicator=mod.star, ncat=ncat, 
+                          iter=control.post.hoc$iter, burn.in=control.post.hoc$burn.in, thin=control.post.hoc$thin, verbose=FALSE )
     #cat("\nFinished post hoc Gibbs sampling...\n")
     x$classprob <- ph.est$classprob
     x$classprob.sd <- ph.est$classprob.sd

@@ -4,48 +4,44 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
           sd.method=c("delta","boot"), conv=1e-6, small=1e-10, MAP=TRUE, pars.init=NULL, for.boot=FALSE )
 {
 	# check if data is simulated 
-  if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
-  if( !is.null(formula) ) X <- model.frame( formula, data=X )
+  #if( class(X)[1] == "blca.rand" & !is.matrix(X) ) X <- X$X 
   
   args.passed <- as.list( environment() )
   #list of returns
   x <- list()
   x$call <- match.call()
   x$args <- args.passed
-  
-  # blca.check.missing ...
-  miss <- blca.check.missing( X )
-  if( miss$missing ){
-    warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
-    X <- na.omit(X)
-  } 
-  
-	# convert X into a numeric matrix and check inputs
-	D <- blca.check.data( X, counts.n, ncat )
+
+	# convert X into a numeric matrix for passage to C (index from 0) and check inputs
+	D <- blca.prep.data( X, formula, counts.n, ncat )
 	
 	X <- D$X
+	x$args$formula <- D$formula
 	ncat <- D$ncat
 	x$args$ncat <- ncat
+	levnames <- D$levnames
+	x$G <- G
+	
+	
+	if( !is.null(D$missing.idx) )
+	{
+	  warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
+	  X <- na.omit(X)	  
+	}
 
 	N<-nrow(X) 
 	M<-ncol(X)
 	
-	#if( is.null(model.indicator) )
-	#{
 	model.indicator <- rep(1,M)
-	#}else if( length(model.indicator) != M ){
-	#	stop("model.indicator must have length ncol(X)")
-  #}
+	M.in <- sum( model.indicator ) 
+	if( M.in == 0 ) stop("there are no variables included: check model.indicator")
+	if( prod( ncat[model.indicator==1] ) <= (M.in+1)*G) stop(paste("maximum numer of classes that should be run for this data is ", floor(prod(ncat[model.indicator==1])/(M.in+1)) ))
 
 	out.prior <- blca.check.prior( alpha, beta, delta, G, M, ncat )
 	prior.init.type <- out.prior$prior.init.type
 	gamma <- out.prior$gamma
 	delta <- out.prior$delta
 	
-	M.in <- sum( model.indicator ) 
-	if( M.in == 0 ) stop("there are no variables included: check model.indicator")
-	if( prod( ncat[model.indicator==1] ) <= (M.in+1)*G) stop(paste("maximum numer of classes that should be run for this data is ", floor(prod(ncat[model.indicator==1])/(M.in+1)) ))
-
 	if(is.numeric(restarts)){
 	  if(length(restarts)>1){
 	    restarts<- restarts[1]
@@ -66,7 +62,7 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
 
 	hparam <- c( delta[1], beta[1] )
 	
-	log.object.max <- 0.
+	log.object.max <- 0.0
 	log.post.max <- -Inf
 	w.max <- NULL
 	
@@ -170,7 +166,7 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
 			var.probs.l[[l]] <- matrix( w.max$variable.probs[(gap+1):(gap + G*ncat[j])] , nrow =  G, ncol=ncat[j], byrow=TRUE )
 			if(G>1){var.probs.l[[l]] <- var.probs.l[[l]][o,]}
 			rownames( var.probs.l[[l]] ) <-  paste( "Group", 1:G )
-			colnames( var.probs.l[[l]] ) <- paste("Cat",0:(ncat[j]-1) )
+			colnames( var.probs.l[[l]] ) <- levnames[[j]] 
 			l <- l+1
 		}
 	}
@@ -192,15 +188,14 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
 	itemprobs.var.ind <- rep(names(x$itemprob), times = G * ncat[ which(model.indicator == 1) ])
 	itemprobs.cat.ind <- paste("Cat", rep(as.numeric(unlist(apply(t(ncat[ which(model.indicator == 1) ]), 2, function(x) 0:(x-1)))), each = G))
 	
-	
-	
 	if(any(ncat > 2)){
 		x$itemprob.tidy <- data.frame(itemprob = vec.itemprobs, group = itemprobs.group.ind, 
 		                              variable = itemprobs.var.ind, category = itemprobs.cat.ind)
+		# need to do some extra work here on itemprob.tidy to match with levnames
 	}else{ 
 	  x$itemprob <- matrix(vec.itemprobs[itemprobs.cat.ind == "Cat 1"], nrow = G, 
 	                       ncol = sum(model.indicator), dimnames = list(paste("Group", 1:G), names(x$itemprob)))
-	  }
+	}
 
 	x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G )
 	x$Z <- x$Z[,o]

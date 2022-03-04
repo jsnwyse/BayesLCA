@@ -98,6 +98,8 @@ rlca <-
       }
     }
     
+    colnames(x) <- paste0("X",1:M)
+    
     if( return.class ) x <- list( X=x, class=z, class.prob.memb=s ) 
     class(x) <- "blca.rand"
     return(x)

@@ -3,43 +3,41 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
                         relabel=TRUE, verbose=TRUE, verbose.update=1000 ) 
 {
   # check if data is simulated 
-  if( class(X) == "blca.rand" & !is.matrix(X) ) X <- X$X
-  if( !is.null(formula) ) X <- model.frame( formula, data=X )
-  
+  #if( class(X)[1] == "blca.rand" & !is.matrix(X) ) X <- X$X
+
   #list of returns
   args.passed <- as.list( environment() )
   x <- list()
   x$call <- match.call()
   x$args <- args.passed
   
-  # blca.check.missing has to be wrapped in blca.check.data...
-  miss <- blca.check.missing( X )
-  missing <- miss$missing
-  if( missing & impute.missing ) missing.idx <- miss$idxs
-  if( missing & !impute.missing )
-  {
-    warning("Missing values encountered in X: rows with NA have been removed: imputation is performed if impute.missing is TRUE", call.=FALSE )
-    X <- na.omit(X)
-  }
-  
   # convert X into a numeric matrix and check inputs
-  D <- blca.check.data( X, counts.n, ncat )
+  D <- blca.prep.data( X, formula, counts.n, ncat )
   
   X <- D$X
   ncat <- D$ncat
+  x$args$formula <- D$formula
   x$args$ncat <- ncat
   levnames <- D$levnames
+  
+  if( !is.null(D$missing.idx) & impute.missing )
+  { 
+    missing <- TRUE
+    missing.idx <- D$missing.idx
+  }else{ 
+    missing <- FALSE 
+  }
+  
+  if( !is.null(D$missing.idx) & !impute.missing )
+  {
+    warning("Missing values encountered in X and rows with NA have been removed: imputation is performed if impute.missing is TRUE", call.=FALSE )
+    X <- na.omit(X)
+  }
   
   N<-nrow(X) 
   M<-ncol(X)
   
-  if( is.null(model.indicator) )
-  {
-    model.indicator <- rep(1,M)
-  }else if( length(model.indicator) != M ){
-    stop("model.indicator must have length ncol(X)")
-  }
-  
+  model.indicator <- rep(1,M)
   M.in <- sum( model.indicator ) 
   if( M.in == 0 ) stop("there are no variables included: check model.indicator")
   if( prod( ncat[model.indicator==1] ) <= (M.in+1)*G) warning( "Gibbs sampling can be run but check constraints on parameter estimability", call.=FALSE )
@@ -48,7 +46,6 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
   prior.init.type <- out.prior$prior.init.type
   gamma <- out.prior$gamma
   delta <- out.prior$delta
-  
   
   if( is.character(start.vals[1]) ) 
   {
@@ -185,7 +182,7 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
     
     membership.mat <- ro.membership.mat
     
-    Z <- t( apply( membership.mat, 2, tabulate, nbins=G ) ) / stored
+    Z <- t( apply( membership.mat, 2, tabulate, nbins=G ) ) / stored  ## re-do Z using predict?
     
   }else{
     Z <- NULL
@@ -229,6 +226,23 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
     }
   }
   
+  # finally reorder the samples for correct prediction of new data 
+  weights.mat <- weights.mat[ , o]
+  for( k in 1:stored )
+  {
+    l <- 1
+    for( j in 1:M  )
+    {
+      it <- (k-1)*G
+      if( model.indicator[j] )
+      {
+        var.probs.l[[l]][ it + 1:G , ] = var.probs.l[[l]][ it + o , ] # final reorder as label swapping done
+        l <- l+1
+      }
+    }
+  }
+  
+  
   if( is.null(colnames(X)) )
   {
     names( v.probs$mean ) <- names( v.probs$sd ) <- paste("Variable", which( model.indicator==1 ) )
@@ -238,7 +252,16 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
   
   if( missing )
   {
-    missing.samp <- matrix( w$missing, nrow=stored, byrow=TRUE )
+    missing.samp <- matrix( w$missing, nrow=stored, byrow=TRUE ) + 1
+    missing.samp.lev <- array( NA, dim=dim(missing.samp) )
+    # match levels to sampled cats for presentation
+    vars.missing <- missing.idx[,2] 
+    for( k in seq_along(vars.missing) ) # k indexes cols of missing.samp
+    {
+      j <- vars.missing[k]
+      missing.samp.lev[,k] <- levnames[[j]][ missing.samp[,k] ] 
+    }
+    missing.samp <- missing.samp.lev
   }
   
   # compile the list to return
@@ -279,10 +302,7 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
   x$samples$classprob <- weights.mat 
   x$samples$labels <- membership.mat
   
-  if( missing )
-  {
-    x$samples$missing <- missing.samp
-  }
+  if( missing ) x$samples$missing <- missing.samp
   
   if(any(ncat > 2)){
     x$itemprob.tidy <- data.frame(itemprob = vec.itemprobs, group = itemprobs.group.ind, variable = itemprobs.var.ind, category = itemprobs.cat.ind)
@@ -302,7 +322,7 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
       arr[,,m] <- matrix( var.probs.l[[m]][,2], nrow=stored , ncol=G , byrow = TRUE )
     }
     dimnames(arr)[[3]] <- names(v.probs$mean)
-    x$samples$itemprob <- arr
+    #x$samples$itemprob <- arr
   }
   
   # for information criteria take the mean of log-likelihoods 
@@ -310,7 +330,7 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
   S2<- var(w$log.like)
   
   # now get the log-likelihood at the MCMC Bayes estimate of parameters
-  log.like.val <- 0.
+  log.like.val <- 0.0
   weights.be <- x$classprob
   variable.probs.be <- unlist( lapply(x$itemprob, t) )
   
