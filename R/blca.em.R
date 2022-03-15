@@ -1,11 +1,9 @@
 blca.em <-
 function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1, 
-          start.vals = c("single","across"), counts.n=NULL, iter=2000, restarts=5, verbose=TRUE, sd=FALSE, 
+          start.vals = c("single","across"), counts.n=NULL, iter=2000, restarts=5, verbose=FALSE, sd=TRUE, 
           sd.method=c("delta","boot"), conv=1e-6, small=1e-10, MAP=TRUE, pars.init=NULL, for.boot=FALSE )
 {
-	# check if data is simulated 
-  #if( class(X)[1] == "blca.rand" & !is.matrix(X) ) X <- X$X 
-  
+
   args.passed <- as.list( environment() )
   #list of returns
   x <- list()
@@ -25,7 +23,7 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
 	
 	if( !is.null(D$missing.idx) )
 	{
-	  warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
+	  warning("Missing values encountered in X: rows with NA have been removed. Imputation is available for method = 'gibbs'.", call.=FALSE)
 	  X <- na.omit(X)	  
 	}
 
@@ -125,10 +123,12 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
 			new.max <- TRUE
 		}
 		
+		if( G == 1 ) break # don't bother with restarts in this case as no need
+		
 		if( verbose ) 
 		{
 		  if( MAP ) str.obj <- ", logpost = " else str.obj <- ", loglik = "
-			if( new.max && r>1 )
+			if( new.max && r>1 && G > 1 )
 			{
 				cat( "\nNew maximum found... Restart number ",r,", logpost = ", round(log.post.this,2),"...", sep = "" )
 			}else{ 
@@ -137,11 +137,10 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
 		}
 		
 		if( as.logical(w$converged) == FALSE ) cnv.warn <- TRUE
-	
 	}	
 	
 	if(cnv.warn) warning("Some restarts failed to converge: rerun with a higher iter value or less stringent tolerance", call.=FALSE)
-	if( verbose ) cat("\n")
+	#if( verbose ) cat("\n")
 	
 	x$G <- G
 	x$classprob <- w.max$weights
@@ -164,7 +163,7 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
 		if( model.indicator[j] )
 		{
 			var.probs.l[[l]] <- matrix( w.max$variable.probs[(gap+1):(gap + G*ncat[j])] , nrow =  G, ncol=ncat[j], byrow=TRUE )
-			if(G>1){var.probs.l[[l]] <- var.probs.l[[l]][o,]}
+			var.probs.l[[l]] <- var.probs.l[[l]][o,,drop=FALSE]
 			rownames( var.probs.l[[l]] ) <-  paste( "Group", 1:G )
 			colnames( var.probs.l[[l]] ) <- levnames[[j]] 
 			l <- l+1
@@ -198,10 +197,8 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
 	}
 
 	x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G )
-	x$Z <- x$Z[,o]
-	if(G>1){							      
+	x$Z <- x$Z[,o,drop=FALSE]
 	colnames(x$Z) <- paste( "Group", 1:G )	
-	}	
   
   likl <- w.max$log.object.max
   
@@ -244,23 +241,23 @@ function( X, G, formula = NULL, ncat=NULL, alpha=1, beta=1, delta=1,
 	
 	if( sd )
 	{
-		if( verbose ) cat("\nObtaining parameter uncertainty estimates...")
+		if( verbose & G > 1 ) cat("\nObtaining parameter uncertainty estimates...")
 		if( sd.method[1] == "boot" ) y <- blca.boot( X, G=G, fit=x, iter=500, B=100, verbose=FALSE, conv=1e-4  )
 		# still need to incorporate  the prior here
 	  if( sd.method[1] == "delta" ) y <- blca.em.sd( X, ncat, x$classprob, var.probs.l, model.indicator, NULL, 1e-10 )
-		x$itemprob.sd <-y$itemprob.sd
+		x$itemprob.sd <- y$itemprob.sd
 		names(x$itemprob.sd) <- names(x$itemprob)
 		x$classprob.sd <- y$classprob.sd
-		if( verbose ) cat("\nParameter uncertainty estimates complete...\n")
+		if( verbose & G > 1 ) cat("\nParameter uncertainty estimates complete...\n")
 	}
 	
 	x$method <- "em"
 	
-	if( MAP & !for.boot ) warning("AIC and BIC will not be correct for model comparison if priors changed from default: set MAP to FALSE for MLE", call. = FALSE)
+	if( MAP & !for.boot ) warning("AIC and BIC will not be correct for model comparison if priors different from package default: set MAP to FALSE for MLE", call. = FALSE)
 	
 	x <- blca.return.order( x )
 
 	if(any(ncat > 2)) class(x)<- c("blca.em", "blca.multicat","blca") else class(x)<-c("blca.em", "blca")
 
-		return(x)
+	return(x)
 }

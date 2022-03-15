@@ -3,27 +3,26 @@ blca.collapsed <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delt
                             G.sel=TRUE, var.sel=FALSE, post.hoc.run=TRUE, control.post.hoc=list(iter=2000,burn.in=500,thin=1), 
                             var.prob.thresh=0.75, n.gibbs=nrow(X), only.gibbs=TRUE, G.max=30, 
                             G.prior=dpois(1:G.max, lambda=1)/sum(dpois(1:G.max, lambda=1)), # normalize
-                            prob.inc=0.5, hprior.model=FALSE, relabel=TRUE, verbose=TRUE, verbose.update=1000 )
+                            prob.inc=0.5, hprior.model=FALSE, relabel=TRUE, verbose=FALSE, verbose.update=1000 )
 {
-  # check if data is simulated 
-  #if( class(X)[1] == "blca.rand" & !is.matrix(X) ) X <- X$X 
-
+  
   args.passed <- as.list( environment() )
   #list of returns
   x <- list()
   x$call <- match.call()
   x$args <- args.passed
-
+  
   # convert X into a numeric matrix for passage to C (index from 0) and check inputs
   D <- blca.prep.data( X, formula, counts.n, ncat )
   
   X <- D$X
   ncat <- D$ncat
+  x$args$formula <- D$formula
   x$args$ncat <- ncat
   
   if( !is.null(D$missing.idx) )
   {
-    warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
+    warning("Missing values encountered in X: rows with NA have been removed. Imputation is available for method = 'gibbs'.", call.=FALSE)
     X <- na.omit(X)	  
   }
   
@@ -85,6 +84,7 @@ blca.collapsed <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delt
   membership.mat <- matrix( w$memberships, nrow = stored, ncol=N, byrow=FALSE ) + 1
   vindicator.mat <- matrix( w$variable.inclusion.indicator, nrow=stored, ncol=M, byrow=FALSE )
   
+  rl.flag <- ( G.sel == FALSE & G == 1 )
   
   if( relabel ) 
   {
@@ -94,7 +94,7 @@ blca.collapsed <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delt
     labels <- vector(length(grp),mode="list")
     varindicator <- vector(length(grp),mode="list")
     logpost <- vector(length(grp),mode="list")
-
+    
     for( k in seq_along(grp) ) 
     {
       idxs[[k]] <- which( w$ngroups == grp[k] )
@@ -106,10 +106,15 @@ blca.collapsed <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delt
       z.pivot <- match( z.pivot, ma ) # label largest group 1, second largest group 2 etc.
       # sort by group size for nice presentation and plotting
       # call ecr function to get optimal permutations
-      rl <- ecr( zpivot=z.pivot, mi.memb.mat, K=grp[k])
-      ro.membership.mat <- array( dim=dim(mi.memb.mat))
-      for( j in 1:nrow(mi.memb.mat) ) ro.membership.mat[j,] <- pmatch(  mi.memb.mat[j,], rl$permutation[j,], duplicates.ok=T )
-      labels[[k]] <- ro.membership.mat
+      if( !rl.flag )
+      {
+        rl <- ecr( zpivot=z.pivot, mi.memb.mat, K=grp[k])
+        ro.membership.mat <- array( dim=dim(mi.memb.mat))
+        for( j in 1:nrow(mi.memb.mat) ) ro.membership.mat[j,] <- pmatch(  mi.memb.mat[j,], rl$permutation[j,], duplicates.ok=T )
+        labels[[k]] <- ro.membership.mat
+      }else{
+        labels[[k]] <- mi.memb.mat
+      }
       varindicator[[k]] <- vindicator.mat[idxs[[k]],]
       logpost[[k]] <- w$log.posterior[ idxs[[k]] ]
     }
@@ -123,6 +128,7 @@ blca.collapsed <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delt
     Z <- t( apply( labels[[j]], 2, tabulate, nbins=Ghat ) ) / nrow(labels[[j]])
   }else{
     Z <- NULL
+    if( G == 1 & G.sel == FALSE ) Z <- matrix( rep(1,N), nrow=N, ncol=1 ) 
   }
   
   #x = list()
@@ -189,7 +195,9 @@ blca.collapsed <- function( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delt
     x$itemprob.sd <- ph.est$itemprob.sd 
     x$itemprob.tidy <- ph.est$itemprob.tidy
     x$Z <- ph.est$Z
-    cat("Posterior group membership probabilities computed from post hoc Gibbs sampling\n")
+    x$samples$classprob <- ph.est$samples$classprob
+    x$samples$itemprob <- ph.est$samples$itemprob
+    if(verbose) cat("Posterior group membership probabilities computed from post hoc Gibbs sampling\n")
   } 
   
   x$method <- "collapsed"

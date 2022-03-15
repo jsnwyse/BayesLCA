@@ -5,7 +5,7 @@ blca.em.sd <- function( X, ncat, classprob, itemprob, model.indicator, prior=NUL
   
   # convert the class and itemprobs to cts scale
   eta <- log( classprob / classprob[G] )
-  eta <- eta[1:(G-1)]
+  if( G > 1 ) eta <- eta[1:(G-1)]
   
   zeta <- NULL
   l <- 1
@@ -20,7 +20,7 @@ blca.em.sd <- function( X, ncat, classprob, itemprob, model.indicator, prior=NUL
     }
   }
   
-  par <- c( eta, zeta )
+  if( G > 1 ) par <- c( eta, zeta ) else par <- zeta
   
   # use hessian function from numDeriv package
   obsI.par <- -hessian(func = blca.em.sd.log.post, par, ncat=ncat, G=G, M=M, X=X, model.indicator=model.indicator, prior=prior )
@@ -30,7 +30,7 @@ blca.em.sd <- function( X, ncat, classprob, itemprob, model.indicator, prior=NUL
   # transformation matrix
   W <- matrix(0,nrow= G + sum(ncat*model.indicator)*G, ncol= G-1 + sum(ncat*model.indicator-1)*G )
   
-  W[1:G,1:(G-1)] <- rbind( diag(1,nrow=G-1) * classprob[-G], numeric(G-1) ) - classprob %*% t( classprob[-G] )
+  if( G > 1 ) W[1:G,1:(G-1)] <- rbind( diag(1,nrow=G-1) * classprob[-G], numeric(G-1) ) - classprob %*% t( classprob[-G] )
   
   o <- G
   r <- G-1
@@ -52,13 +52,17 @@ blca.em.sd <- function( X, ncat, classprob, itemprob, model.indicator, prior=NUL
     }
   }
   
+  if( G == 1 ) W <- W[2:nrow(W),]
+  
   obsI.theta.inv <- W %*% ( obsI.par.inv %*% t(W))
-  sds <- sqrt( diag(obsI.theta.inv) )
-  #if( any(sds < small) ) sds[ sds < small ] <- NA
+  vars <- diag(obsI.theta.inv) 
+  if( any(vars < 0) ) warning("Diagonal entries of observed information matrix not all positive: some posterior standard deviations/errors will be undefined.")
+  vars[ vars < 0 ] <- NA
+  sds <- sqrt(vars)
   
   # convert to list
-  classprob.sd <- sds[1:G]
-  o <- G
+  if( G > 1 ) classprob.sd <- sds[1:G] else classprob.sd <- 0
+  if( G > 1 ) o <- G else o <- 0
   itemprob.sd <- vector( M, mode="list" )
   itsd <- matrix( nrow=G, ncol=sum(model.indicator))
   l <- 1
@@ -87,7 +91,7 @@ blca.em.sd <- function( X, ncat, classprob, itemprob, model.indicator, prior=NUL
 blca.em.sd.log.post <- function( par, ncat, G, M, X, model.indicator, prior )
 {
   
-  eta <- c( par[1:(G-1)], 0 )
+  if( G > 1 ) eta <- c( par[1:(G-1)], 0 ) else eta <- 0
   classprob <- exp( eta )
   classprob <- classprob / sum(classprob)
   
@@ -97,8 +101,11 @@ blca.em.sd.log.post <- function( par, ncat, G, M, X, model.indicator, prior )
   {
     d <- G - 1 + sum( ncat * model.indicator - 1 ) * G
     W <- matrix( 0, nrow=d, ncol=d )
-    a <- classprob[1:(G-1)]
-    W[1:(G-1),1:(G-1)] <- diag(a) - a %*% t(a)
+    if( G  > 1 )
+    {
+      a <- classprob[1:(G-1)]
+      W[1:(G-1),1:(G-1)] <- diag(a) - a %*% t(a)
+    }
   }
   
   o <- G-1

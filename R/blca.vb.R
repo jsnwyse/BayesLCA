@@ -20,7 +20,7 @@ blca.vb <- function( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, s
     
     if( !is.null(D$missing.idx) )
     {
-      warning("Missing values encountered in X: rows with NA have been removed", call.=FALSE)
+      warning("Missing values encountered in X: rows with NA have been removed. Imputation is available for method = 'gibbs'.", call.=FALSE)
       X <- na.omit(X)	  
     }
     
@@ -115,6 +115,8 @@ blca.vb <- function( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, s
         new.max <- TRUE
       }
       
+      if( G == 1 ) break # don't bother with restarts in this case as no need
+      
       if( verbose ) 
       {
         if( new.max && r>1 )
@@ -129,7 +131,7 @@ blca.vb <- function( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, s
       
     }	
     if( cnv.warn ) warning("Some restarts failed to converge: rerun with a higher iter value or less stringent tolerance", call.=FALSE)
-    if( verbose ) cat("\n")
+    if( verbose & G>1 ) cat("\n")
     
     w <- w.max
     
@@ -146,7 +148,7 @@ blca.vb <- function( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, s
     x$classprob.sd <- w$se.weights[o]
     
     x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G, byrow=TRUE )
-    x$Z <- x$Z[,o]
+    x$Z <- x$Z[,o,drop=FALSE]
     colnames(x$Z) <- paste( "Group", 1:G )
     
     l <- 1
@@ -161,13 +163,13 @@ blca.vb <- function( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, s
       if( model.indicator[j] )
       {
         var.probs.l[[l]] <- matrix( w$variable.probs[(gap+1):(gap + G*ncat[j])] , nrow =  G, ncol=ncat[j], byrow=TRUE )
-        var.probs.l[[l]] <- var.probs.l[[l]][o,]
+        var.probs.l[[l]] <- var.probs.l[[l]][o,,drop=FALSE]
         se.var.probs.l[[l]] <- matrix( w$se.variable.probs[(gap+1):(gap + G*ncat[j])] , nrow =  G, ncol=ncat[j], byrow=TRUE )
-        se.var.probs.l[[l]] <- se.var.probs.l[[l]][o,]
+        se.var.probs.l[[l]] <- se.var.probs.l[[l]][o,,drop=FALSE]
         par.var.probs.l[[l]] <- matrix( w$pars.variable.probs[(gap+1):(gap + G*ncat[j])], nrow=G, ncol=ncat[j], byrow=TRUE )
-        par.var.probs.l[[l]] <- par.var.probs.l[[l]][o,]
+        par.var.probs.l[[l]] <- par.var.probs.l[[l]][o,,drop=FALSE]
         rownames( var.probs.l[[l]] ) <- rownames( se.var.probs.l[[l]] ) <- rownames(par.var.probs.l[[l]]) <-  paste( "Group", 1:G )
-        colnames( var.probs.l[[l]] ) <- colnames( se.var.probs.l[[l]] ) <- colnames(par.var.probs.l[[l]]) <-  levnames[[j]] #paste("Cat",0:(ncat[j]-1) )
+        colnames( var.probs.l[[l]] ) <- colnames( se.var.probs.l[[l]] ) <- colnames(par.var.probs.l[[l]]) <-  levnames[[j]] 
         l <- l+1
       }
     }
@@ -211,9 +213,6 @@ blca.vb <- function( X, G, formula=NULL,  ncat=NULL, alpha=1, beta=1, delta=1, s
       dimnames(arr)[[2]] <- names(var.probs.l)
       x$parameters$itemprob <- arr
     }
-    
-    #x$Z <- matrix( w.max$group.probs, nrow=N, ncol=G, byrow=TRUE )
-    #colnames(x$Z) <- paste( "Group", 1:G )
     
     x$LB <- lb.max
     x$lbstore <- w$lb[ 1:w$iters ]

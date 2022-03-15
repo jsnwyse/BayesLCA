@@ -1,6 +1,5 @@
 \name{blca.collapsed}
 \alias{blca.collapsed}
-%- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 Bayesian Latent Class Analysis variable and group selection via collapsed sampling
 }
@@ -14,7 +13,7 @@ blca.collapsed( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1,
                 control.post.hoc=list(iter=2000,burn.in=500,thin=1), 
                 var.prob.thresh=0.75, n.gibbs=nrow(X), only.gibbs=TRUE, 
                 G.max=30, G.prior=dpois(1:G.max, lambda=1)/sum(dpois(1:G.max, lambda=1)), 
-                prob.inc=0.5, hprior.model=FALSE, relabel=TRUE, verbose=TRUE, 
+                prob.inc=0.5, hprior.model=FALSE, relabel=TRUE, verbose=FALSE, 
                 verbose.update=1000 )
 }
 %- maybe also 'usage' for other objects documented here.

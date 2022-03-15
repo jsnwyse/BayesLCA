@@ -11,7 +11,7 @@ Latent class analysis (LCA) attempts to find G hidden classes in binary data X. 
 blca.gibbs( X, G, formula=NULL, ncat=NULL,  alpha=1, beta=1, delta=1,
  start.vals=c("prior","single","across"), counts.n=NULL, model.indicator=NULL,
   impute.missing=FALSE, iter=5000, burn.in=100, thin=1,
-  accept=thin, relabel=TRUE, verbose=TRUE, verbose.update=1000 ) 
+  accept=thin, relabel=TRUE, verbose=FALSE, verbose.update=1000 ) 
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{

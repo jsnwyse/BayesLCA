@@ -1,10 +1,7 @@
 blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=1, start.vals=c("prior","single","across"), 
                         counts.n=NULL, model.indicator=NULL, impute.missing=FALSE, iter=5000, burn.in=100, thin=1, accept=thin, 
-                        relabel=TRUE, verbose=TRUE, verbose.update=1000 ) 
+                        relabel=TRUE, verbose=FALSE, verbose.update=1000 ) 
 {
-  # check if data is simulated 
-  #if( class(X)[1] == "blca.rand" & !is.matrix(X) ) X <- X$X
-
   #list of returns
   args.passed <- as.list( environment() )
   x <- list()
@@ -140,6 +137,8 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
   
   weights.mat <- matrix( w$weights , nrow=stored, ncol=G, byrow=TRUE )
   
+  if( G == 1 ) relabel <- FALSE # not needed for single group
+  
   if( relabel ) 
   {
     if( verbose ) cat("\nPost processing samples...\n")
@@ -186,6 +185,7 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
     
   }else{
     Z <- NULL
+    if( G == 1 ) Z <- matrix( rep(1,N), nrow=N, ncol=1 )
   }
   
   x$classprob <- apply( weights.mat, 2, mean )
@@ -193,11 +193,11 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
   o <- order(x$classprob, decreasing=TRUE)
   x$classprob <- x$classprob[o]
   x$classprob.sd <- x$classprob.sd[o]
-  Z <- Z[,o]
+  Z <- Z[,o, drop=FALSE]
   
-  for( k in 1:stored )
+  if( G > 1)
   {
-    membership.mat[k,] <- pmatch( membership.mat[k,], o, duplicates.ok=T )
+    for( k in 1:stored ) membership.mat[k,] <- pmatch( membership.mat[k,], o, duplicates.ok=T )
   }
   
   l.len <- sum(model.indicator)
@@ -212,12 +212,12 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
       v.probs$sd[[l]] <- matrix( nrow = G, ncol = ncat[j] )
       for( g in 1:G )
       {
-        b <- var.probs.l[[l]][ tt+g , ]
+        b <- var.probs.l[[l]][ tt+g , , drop=FALSE]
         v.probs$mean[[l]][g,] <- apply( b, 2, mean )
         v.probs$sd[[l]][g,] <- apply( b, 2, sd )
       }
-      v.probs$mean[[l]] <- v.probs$mean[[l]][o,]
-      v.probs$sd[[l]] <- v.probs$sd[[l]][o,]
+      v.probs$mean[[l]] <- v.probs$mean[[l]][o,,drop=FALSE]
+      v.probs$sd[[l]] <- v.probs$sd[[l]][o,,drop=FALSE]
       rownames( v.probs$mean[[l]] ) <- paste( "Group", 1:G )
       colnames( v.probs$mean[[l]] ) <- levnames[[j]] 
       rownames( v.probs$sd[[l]] ) <- paste( "Group", 1:G )
@@ -227,7 +227,7 @@ blca.gibbs <- function( X, G, formula=NULL,  ncat=NULL,  alpha=1, beta=1, delta=
   }
   
   # finally reorder the samples for correct prediction of new data 
-  weights.mat <- weights.mat[ , o]
+  weights.mat <- weights.mat[ , o, drop=FALSE]
   for( k in 1:stored )
   {
     l <- 1

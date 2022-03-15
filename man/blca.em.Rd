@@ -9,8 +9,8 @@ Latent class analysis (LCA) attempts to find G hidden classes in binary data X. 
 }
 \usage{
 blca.em( X, G, formula=NULL, ncat=NULL, alpha=1, beta=1, delta=1, 
-        start.vals = c("single","across"), counts.n=NULL, iter=2000, restarts=5, verbose=TRUE, 
-        sd=FALSE, sd.method=c("delta","boot"), conv=1e-6, small=1e-10, 
+        start.vals = c("single","across"), counts.n=NULL, iter=2000, restarts=5, verbose=FALSE, 
+        sd=TRUE, sd.method=c("delta","boot"), conv=1e-6, small=1e-10, 
         MAP=TRUE, pars.init=NULL, for.boot=FALSE )
 }
 

@@ -14,6 +14,12 @@ predict.blca <- function( object, newdata=NULL, ...)
   
   if(any( class(object)[1] == c("blca.em", "blca.vb") )) return( predict.blca.pt.estimate( object, newdata ))
   if(any( class(object)[1] == c("blca.gibbs", "blca.boot"))) return( predict.blca.avg.samples( object, newdata))
+  if( class(object)[1] == "blca.collapsed" ){
+    if( object$args$post.hoc.run == FALSE ) stop("predictions from object of class blca.collapsed are based on auxiliary MCMC \
+                                                 run, but post.hoc.run was set to FALSE in the call")
+    warning("predictions from object of class blca.collapsed are based on auxiliary MCMC run conditional on number of groups")
+    return( predict.blca.avg.samples( object, newdata))
+  }
 }
 
 predict.blca.pt.estimate <- function( object, newdata  )
