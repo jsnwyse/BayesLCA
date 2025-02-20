@@ -1,4 +1,4 @@
-blca.prep.data <- function( X, formula, counts.n, ncat )
+blca.prep.data <- function( X, formula=NULL, counts.n, ncat )
 {
   # check if data is simulated 
   if( class(X)[1] == "blca.rand" & !is.matrix(X) ) X <- X$X
@@ -17,11 +17,12 @@ blca.prep.data <- function( X, formula, counts.n, ncat )
     for( k in 2:length(z) ) U <- rbind( U, matrix( rep( Y[k,], z[k] ) , nrow=z[k], byrow=TRUE ) )
     X <- as.matrix(U)
   }
+  if( class(X)[1] == "blca.rand" ) X <- unclass(X)
   
-  if( is.matrix(X) ) X <- data.frame(X)
+  if( is.matrix(X) ) X <- as.data.frame( X )
   
   # create formula for prediction methods
-  if( is.null(formula) ) formula <- as.formula(paste( "~ ", paste( names(X), collapse = "+")))
+  if( is.null(formula) ) formula <- as.formula(paste0( "~", paste( names(X), collapse = "+")))
   X <- model.frame( formula, data=X, na.action = na.pass )
   
   # check for missing values
